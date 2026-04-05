@@ -13,17 +13,17 @@ const categories = [
 
 export function Categories() {
   return (
-    <section className="py-6 border-b border-border bg-background">
+    <section className="py-4 bg-background border-b border-border">
       <div className="container mx-auto px-6 lg:px-8">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
           {categories.map((category) => (
             <button
               key={category.name}
-              className="group flex items-center gap-2.5 whitespace-nowrap rounded-full border border-border bg-card px-4 py-2.5 text-sm font-medium transition-all hover:border-primary/40 hover:bg-primary/5"
+              className="flex items-center gap-2 whitespace-nowrap rounded-full border border-border bg-card px-4 py-2 text-sm font-medium transition-all hover:border-primary/30 hover:bg-primary/5"
             >
-              <category.icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+              <category.icon className="h-4 w-4 text-muted-foreground" />
               <span className="text-foreground">{category.name}</span>
-              <span className={`text-xs font-medium px-1.5 py-0.5 rounded-md ${category.isLive ? "bg-green-500/10 text-green-600" : "bg-muted text-muted-foreground"}`}>
+              <span className={`text-xs px-1.5 py-0.5 rounded ${category.isLive ? "bg-emerald-500/10 text-emerald-600" : "text-muted-foreground"}`}>
                 {category.count}
               </span>
             </button>

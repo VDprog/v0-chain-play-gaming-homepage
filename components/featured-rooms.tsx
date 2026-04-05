@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Users, Timer, ArrowRight } from "lucide-react"
+import { Users, Timer } from "lucide-react"
 
 interface RoomCardProps {
   title: string
@@ -60,39 +60,38 @@ const rooms: RoomCardProps[] = [
 
 function RoomCard({ title, participants, maxParticipants, round, totalRounds, timeLeft, avatars, status }: RoomCardProps) {
   const statusConfig = {
-    active: { label: "In Progress", color: "bg-green-500/10 text-green-600" },
-    final: { label: "Final Round", color: "bg-amber-500/10 text-amber-600" },
-    waiting: { label: "Waiting", color: "bg-primary/10 text-primary" },
+    active: { label: "In Progress", color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
+    final: { label: "Final Round", color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+    waiting: { label: "Waiting", color: "bg-primary/10 text-primary border-primary/20" },
   }
 
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-card p-5 transition-all duration-200 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
+    <div className="flex flex-col rounded-xl border border-border bg-card p-5 transition-all duration-200 hover:shadow-lg hover:shadow-foreground/[0.03]">
       <div className="flex items-start justify-between mb-4">
-        <h4 className="font-semibold text-foreground">{title}</h4>
-        <span className={`text-xs font-medium px-2 py-1 rounded-md ${statusConfig[status].color}`}>
+        <h4 className="font-semibold text-foreground text-[15px]">{title}</h4>
+        <span className={`text-[11px] font-medium px-2 py-0.5 rounded border ${statusConfig[status].color}`}>
           {statusConfig[status].label}
         </span>
       </div>
       
-      <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+      <div className="flex items-center gap-3 text-sm text-muted-foreground mb-4">
         <div className="flex items-center gap-1.5">
-          <Users className="h-4 w-4" />
+          <Users className="h-3.5 w-3.5" />
           <span>{participants}/{maxParticipants}</span>
         </div>
         <span className="text-border">|</span>
         <span>Round {round}/{totalRounds}</span>
-        <span className="text-border">|</span>
-        <div className="flex items-center gap-1 text-primary font-medium">
+        <div className="flex items-center gap-1 text-primary font-medium ml-auto">
           <Timer className="h-3.5 w-3.5" />
-          <span>{timeLeft}</span>
+          <span className="tabular-nums">{timeLeft}</span>
         </div>
       </div>
       
-      <div className="flex items-center justify-between mt-auto pt-4 border-t border-border/60">
+      <div className="flex items-center justify-between mt-auto pt-4 border-t border-border">
         <div className="flex -space-x-2">
           {avatars.slice(0, 4).map((initial, i) => (
             <Avatar key={i} className="h-7 w-7 border-2 border-card">
-              <AvatarFallback className="bg-primary/8 text-primary text-[10px] font-medium">{initial}</AvatarFallback>
+              <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-medium">{initial}</AvatarFallback>
             </Avatar>
           ))}
           {avatars.length > 4 && (
@@ -101,9 +100,8 @@ function RoomCard({ title, participants, maxParticipants, round, totalRounds, ti
             </div>
           )}
         </div>
-        <Button size="sm" variant={status === "waiting" ? "default" : "outline"} className="h-8 px-4 text-xs font-medium">
+        <Button size="sm" variant={status === "waiting" ? "default" : "outline"} className="h-8 px-4 text-xs font-semibold">
           {status === "waiting" ? "Join" : "Watch"}
-          <ArrowRight className="h-3 w-3 ml-1" />
         </Button>
       </div>
     </div>
@@ -112,15 +110,15 @@ function RoomCard({ title, participants, maxParticipants, round, totalRounds, ti
 
 export function FeaturedRooms() {
   return (
-    <section className="py-16 bg-secondary/30">
+    <section className="py-16 bg-muted/40">
       <div className="container mx-auto px-6 lg:px-8">
-        <div className="mb-8 flex items-end justify-between">
+        <div className="flex items-end justify-between mb-8">
           <div>
-            <h2 className="text-2xl font-bold text-foreground">Featured Rounds</h2>
-            <p className="mt-1.5 text-muted-foreground">Join active multiplayer rooms</p>
+            <h2 className="text-xl font-bold text-foreground sm:text-2xl">Featured Rounds</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Join active multiplayer rooms</p>
           </div>
-          <a href="#rooms" className="text-sm font-medium text-primary hover:underline underline-offset-4">
-            View all
+          <a href="#rooms" className="text-sm font-medium text-primary hover:underline underline-offset-4 hidden sm:block">
+            View all rooms
           </a>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -54,13 +54,13 @@ export function PopularGames() {
   return (
     <section className="py-16 bg-background">
       <div className="container mx-auto px-6 lg:px-8">
-        <div className="mb-8 flex items-end justify-between">
+        <div className="flex items-end justify-between mb-8">
           <div>
-            <h2 className="text-2xl font-bold text-foreground">Popular Games</h2>
-            <p className="mt-1.5 text-muted-foreground">Join thousands of players in these fan favorites</p>
+            <h2 className="text-xl font-bold text-foreground sm:text-2xl">Popular Games</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Join thousands of players in these fan favorites</p>
           </div>
-          <a href="#games" className="text-sm font-medium text-primary hover:underline underline-offset-4">
-            View all
+          <a href="#games" className="text-sm font-medium text-primary hover:underline underline-offset-4 hidden sm:block">
+            View all games
           </a>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

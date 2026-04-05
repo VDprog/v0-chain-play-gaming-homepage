@@ -1,7 +1,6 @@
 "use client"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
 import { Trophy, Flame } from "lucide-react"
 
 interface Player {
@@ -21,21 +20,21 @@ const players: Player[] = [
 ]
 
 function RankBadge({ rank }: { rank: number }) {
-  if (rank === 1) return <div className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 text-xs font-bold">1</div>
-  if (rank === 2) return <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-400/15 text-slate-500 text-xs font-bold">2</div>
-  if (rank === 3) return <div className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-700/15 text-amber-700 text-xs font-bold">3</div>
-  return <div className="flex h-6 w-6 items-center justify-center text-xs font-medium text-muted-foreground">{rank}</div>
+  if (rank === 1) return <div className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 text-[10px] font-bold">1</div>
+  if (rank === 2) return <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-400/15 text-slate-500 text-[10px] font-bold">2</div>
+  if (rank === 3) return <div className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-700/15 text-amber-700 text-[10px] font-bold">3</div>
+  return <div className="flex h-5 w-5 items-center justify-center text-[10px] font-medium text-muted-foreground">{rank}</div>
 }
 
 export function Leaderboard() {
   return (
-    <div className="rounded-xl border border-border bg-card">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-        <div className="flex items-center gap-2.5">
+    <div className="rounded-xl border border-border bg-card overflow-hidden flex-1">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
+        <div className="flex items-center gap-2">
           <Trophy className="h-4 w-4 text-primary" />
-          <h3 className="font-semibold text-foreground">Top Players</h3>
+          <h3 className="font-semibold text-foreground text-sm">Top Players</h3>
         </div>
-        <a href="#leaderboard" className="text-xs font-medium text-primary hover:underline underline-offset-4">
+        <a href="#leaderboard" className="text-[11px] font-medium text-primary hover:underline underline-offset-2">
           View all
         </a>
       </div>
@@ -43,31 +42,26 @@ export function Leaderboard() {
         {players.map((player) => (
           <div
             key={player.name}
-            className="flex items-center justify-between px-5 py-3"
+            className="flex items-center justify-between px-4 py-2.5"
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <RankBadge rank={player.rank} />
-              <Avatar className="h-8 w-8 ring-1 ring-border">
-                <AvatarFallback className="bg-primary/8 text-primary text-xs font-medium">
+              <Avatar className="h-7 w-7">
+                <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-medium">
                   {player.initials}
                 </AvatarFallback>
               </Avatar>
               <div>
                 <p className="text-sm font-medium text-foreground">{player.name}</p>
-                <p className="text-xs text-muted-foreground">{player.wins} wins</p>
+                <p className="text-[11px] text-muted-foreground">{player.wins} wins</p>
               </div>
             </div>
-            <div className="flex items-center gap-1 text-xs font-medium">
-              <Flame className="h-3.5 w-3.5 text-orange-500" />
-              <span className="text-foreground">{player.streak}</span>
+            <div className="flex items-center gap-1 text-xs">
+              <Flame className="h-3 w-3 text-orange-500" />
+              <span className="font-medium text-foreground">{player.streak}</span>
             </div>
           </div>
         ))}
-      </div>
-      <div className="p-3 border-t border-border">
-        <Button variant="ghost" className="w-full h-9 text-sm text-muted-foreground hover:text-foreground">
-          Full Leaderboard
-        </Button>
       </div>
     </div>
   )
