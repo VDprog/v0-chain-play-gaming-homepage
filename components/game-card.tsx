@@ -39,7 +39,7 @@ export function GameCard({ title, description, icon: Icon, players, badge, accen
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <Users className="h-4 w-4" />
-          <span>{players.toLocaleString()} playing</span>
+          <span>{new Intl.NumberFormat("en-US").format(players)} playing</span>
         </div>
         <Button size="sm" className="px-6">Play</Button>
       </div>
