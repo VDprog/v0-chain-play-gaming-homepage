@@ -19,23 +19,24 @@ export default function Home() {
         <FeaturedRooms />
         
         {/* Game Previews & Sidebar */}
-        <section className="py-16 bg-background">
+        <section className="py-20 bg-background">
           <div className="container mx-auto px-6 lg:px-8">
-            <div className="flex items-end justify-between mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4">
               <div>
-                <h2 className="text-xl font-bold text-foreground sm:text-2xl">Game Previews</h2>
-                <p className="mt-1 text-sm text-muted-foreground">See what gameplay looks like</p>
+                <span className="text-xs font-semibold text-primary uppercase tracking-wider">How It Works</span>
+                <h2 className="text-2xl font-bold text-foreground sm:text-3xl mt-2">Game Previews</h2>
+                <p className="mt-2 text-muted-foreground max-w-md">See what gameplay looks like before you jump in</p>
               </div>
             </div>
-            <div className="grid gap-4 lg:grid-cols-3">
-              <div className="lg:col-span-2 grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-5 lg:grid-cols-3">
+              <div className="lg:col-span-2 grid gap-5 sm:grid-cols-2">
                 <SplitOrStealPreview />
                 <PassTheBombPreview />
                 <div className="sm:col-span-2">
                   <QuizPreview />
                 </div>
               </div>
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-5">
                 <LiveGames />
                 <Leaderboard />
               </div>
