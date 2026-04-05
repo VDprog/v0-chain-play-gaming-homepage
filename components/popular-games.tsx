@@ -6,66 +6,64 @@ import { Handshake, Bomb, CircleDot, Clock, Timer, Crown } from "lucide-react"
 const games = [
   {
     title: "Split or Steal",
-    description: "Trust or betray? Make your choice in this classic game theory challenge.",
+    description: "Trust or betray? A classic game theory challenge with real stakes.",
     icon: Handshake,
     players: 1243,
     badge: "Trending",
-    accentColor: "primary",
+    badgeType: "trending" as const,
   },
   {
     title: "Pass the Bomb",
-    description: "Quick reactions needed! Pass the bomb before time runs out.",
+    description: "Quick reactions needed. Pass the bomb before time runs out.",
     icon: Bomb,
     players: 892,
     badge: "Live",
-    accentColor: "destructive",
+    badgeType: "live" as const,
   },
   {
     title: "Hidden Button",
-    description: "Find the invisible button before anyone else. Speed matters!",
+    description: "Find the invisible button before anyone else. Speed wins.",
     icon: CircleDot,
     players: 567,
-    accentColor: "accent",
   },
   {
     title: "Speed Quiz",
-    description: "Answer faster than your opponents in rapid-fire trivia battles.",
+    description: "Answer faster than opponents in rapid-fire trivia battles.",
     icon: Clock,
     players: 2341,
     badge: "Popular",
-    accentColor: "chart1",
+    badgeType: "popular" as const,
   },
   {
     title: "Timer Challenge",
     description: "Stop the timer at exactly the right moment. Precision wins.",
     icon: Timer,
     players: 456,
-    accentColor: "chart2",
   },
   {
     title: "Last Survivor Quiz",
-    description: "Answer correctly or get eliminated. Only one player survives.",
+    description: "Answer correctly or get eliminated. Only one survives.",
     icon: Crown,
     players: 1087,
     badge: "New",
-    accentColor: "chart3",
+    badgeType: "new" as const,
   },
 ]
 
 export function PopularGames() {
   return (
-    <section className="py-16 bg-gradient-to-b from-background to-secondary/30">
-      <div className="container mx-auto px-4 lg:px-8">
-        <div className="mb-10 flex items-center justify-between">
+    <section className="py-16 bg-background">
+      <div className="container mx-auto px-6 lg:px-8">
+        <div className="mb-8 flex items-end justify-between">
           <div>
-            <h2 className="text-3xl font-bold text-foreground">Popular Games</h2>
-            <p className="mt-2 text-muted-foreground">Join thousands of players in these fan favorites</p>
+            <h2 className="text-2xl font-bold text-foreground">Popular Games</h2>
+            <p className="mt-1.5 text-muted-foreground">Join thousands of players in these fan favorites</p>
           </div>
-          <a href="#games" className="text-sm font-medium text-primary hover:underline">
-            View all games
+          <a href="#games" className="text-sm font-medium text-primary hover:underline underline-offset-4">
+            View all
           </a>
         </div>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {games.map((game) => (
             <GameCard key={game.title} {...game} />
           ))}

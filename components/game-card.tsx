@@ -1,8 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Users } from "lucide-react"
+import { Users, ArrowRight } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 interface GameCardProps {
@@ -11,37 +10,42 @@ interface GameCardProps {
   icon: LucideIcon
   players: number
   badge?: string
-  accentColor?: string
+  badgeType?: "trending" | "live" | "new" | "popular"
 }
 
-export function GameCard({ title, description, icon: Icon, players, badge, accentColor = "primary" }: GameCardProps) {
-  const colorVariants: Record<string, string> = {
-    primary: "from-primary/20 to-primary/5 text-primary",
-    accent: "from-accent/20 to-accent/5 text-accent",
-    destructive: "from-destructive/20 to-destructive/5 text-destructive",
-    chart1: "from-chart-1/20 to-chart-1/5 text-chart-1",
-    chart2: "from-chart-2/20 to-chart-2/5 text-chart-2",
-    chart3: "from-chart-3/20 to-chart-3/5 text-chart-3",
+export function GameCard({ title, description, icon: Icon, players, badge, badgeType = "popular" }: GameCardProps) {
+  const badgeStyles = {
+    trending: "bg-primary/10 text-primary",
+    live: "bg-green-500/10 text-green-600",
+    new: "bg-accent/10 text-accent",
+    popular: "bg-muted text-muted-foreground",
   }
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-border bg-card p-6 transition-all hover:border-primary/50 hover:shadow-xl hover:-translate-y-1">
-      {badge && (
-        <Badge className="absolute top-4 right-4 bg-primary/10 text-primary border-primary/20">
-          {badge}
-        </Badge>
-      )}
-      <div className={`mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${colorVariants[accentColor] || colorVariants.primary}`}>
-        <Icon className="h-7 w-7" />
+    <div className="group relative flex flex-col rounded-xl border border-border bg-card p-5 transition-all duration-200 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/8 text-primary">
+          <Icon className="h-5 w-5" />
+        </div>
+        {badge && (
+          <span className={`text-xs font-medium px-2.5 py-1 rounded-md ${badgeStyles[badgeType]}`}>
+            {badge}
+          </span>
+        )}
       </div>
-      <h3 className="mb-2 text-lg font-bold text-foreground">{title}</h3>
-      <p className="mb-4 text-sm text-muted-foreground line-clamp-2">{description}</p>
-      <div className="flex items-center justify-between">
+      
+      <h3 className="mb-1.5 text-base font-semibold text-foreground">{title}</h3>
+      <p className="mb-4 text-sm text-muted-foreground leading-relaxed line-clamp-2 flex-1">{description}</p>
+      
+      <div className="flex items-center justify-between pt-4 border-t border-border/60">
         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <Users className="h-4 w-4" />
-          <span>{new Intl.NumberFormat("en-US").format(players)} playing</span>
+          <span>{new Intl.NumberFormat("en-US").format(players)}</span>
         </div>
-        <Button size="sm" className="px-6">Play</Button>
+        <Button size="sm" variant="ghost" className="h-8 gap-1.5 px-3 text-primary hover:text-primary hover:bg-primary/10 font-medium">
+          Play
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Button>
       </div>
     </div>
   )

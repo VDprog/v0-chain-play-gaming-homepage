@@ -1,9 +1,8 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Users, Timer } from "lucide-react"
+import { Users, Timer, ArrowRight } from "lucide-react"
 
 interface RoomCardProps {
   title: string
@@ -60,63 +59,71 @@ const rooms: RoomCardProps[] = [
 ]
 
 function RoomCard({ title, participants, maxParticipants, round, totalRounds, timeLeft, avatars, status }: RoomCardProps) {
+  const statusConfig = {
+    active: { label: "In Progress", color: "bg-green-500/10 text-green-600" },
+    final: { label: "Final Round", color: "bg-amber-500/10 text-amber-600" },
+    waiting: { label: "Waiting", color: "bg-primary/10 text-primary" },
+  }
+
   return (
-    <div className="rounded-2xl border border-border bg-card p-5 transition-all hover:border-primary/40 hover:shadow-lg">
-      <div className="mb-4 flex items-center justify-between">
-        <h4 className="font-bold text-foreground">{title}</h4>
-        <Badge
-          className={
-            status === "active" ? "bg-green-500/10 text-green-600 border-green-500/20" :
-            status === "final" ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
-            "bg-primary/10 text-primary border-primary/20"
-          }
-        >
-          {status === "active" ? "In Progress" : status === "final" ? "Final Round" : "Waiting"}
-        </Badge>
+    <div className="flex flex-col rounded-xl border border-border bg-card p-5 transition-all duration-200 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
+      <div className="flex items-start justify-between mb-4">
+        <h4 className="font-semibold text-foreground">{title}</h4>
+        <span className={`text-xs font-medium px-2 py-1 rounded-md ${statusConfig[status].color}`}>
+          {statusConfig[status].label}
+        </span>
       </div>
-      <div className="mb-4 flex items-center justify-between text-sm">
-        <div className="flex items-center gap-1.5 text-muted-foreground">
+      
+      <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+        <div className="flex items-center gap-1.5">
           <Users className="h-4 w-4" />
           <span>{participants}/{maxParticipants}</span>
         </div>
-        <div className="flex items-center gap-1.5 text-muted-foreground">
-          <span>Round {round}/{totalRounds}</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-primary font-medium">
-          <Timer className="h-4 w-4" />
+        <span className="text-border">|</span>
+        <span>Round {round}/{totalRounds}</span>
+        <span className="text-border">|</span>
+        <div className="flex items-center gap-1 text-primary font-medium">
+          <Timer className="h-3.5 w-3.5" />
           <span>{timeLeft}</span>
         </div>
       </div>
-      <div className="mb-4 flex items-center">
+      
+      <div className="flex items-center justify-between mt-auto pt-4 border-t border-border/60">
         <div className="flex -space-x-2">
-          {avatars.slice(0, 5).map((initial, i) => (
-            <Avatar key={i} className="h-8 w-8 border-2 border-card">
-              <AvatarFallback className="bg-primary/10 text-primary text-xs">{initial}</AvatarFallback>
+          {avatars.slice(0, 4).map((initial, i) => (
+            <Avatar key={i} className="h-7 w-7 border-2 border-card">
+              <AvatarFallback className="bg-primary/8 text-primary text-[10px] font-medium">{initial}</AvatarFallback>
             </Avatar>
           ))}
-          {avatars.length > 5 && (
-            <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-card bg-muted text-xs font-medium text-muted-foreground">
-              +{avatars.length - 5}
+          {avatars.length > 4 && (
+            <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-card bg-muted text-[10px] font-medium text-muted-foreground">
+              +{avatars.length - 4}
             </div>
           )}
         </div>
+        <Button size="sm" variant={status === "waiting" ? "default" : "outline"} className="h-8 px-4 text-xs font-medium">
+          {status === "waiting" ? "Join" : "Watch"}
+          <ArrowRight className="h-3 w-3 ml-1" />
+        </Button>
       </div>
-      <Button className="w-full" variant={status === "waiting" ? "default" : "outline"}>
-        {status === "waiting" ? "Join Round" : "Spectate"}
-      </Button>
     </div>
   )
 }
 
 export function FeaturedRooms() {
   return (
-    <section className="py-16 bg-background">
-      <div className="container mx-auto px-4 lg:px-8">
-        <div className="mb-10">
-          <h2 className="text-3xl font-bold text-foreground">Featured Rounds</h2>
-          <p className="mt-2 text-muted-foreground">Join active multiplayer rooms</p>
+    <section className="py-16 bg-secondary/30">
+      <div className="container mx-auto px-6 lg:px-8">
+        <div className="mb-8 flex items-end justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-foreground">Featured Rounds</h2>
+            <p className="mt-1.5 text-muted-foreground">Join active multiplayer rooms</p>
+          </div>
+          <a href="#rooms" className="text-sm font-medium text-primary hover:underline underline-offset-4">
+            View all
+          </a>
         </div>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {rooms.map((room) => (
             <RoomCard key={room.title} {...room} />
           ))}
