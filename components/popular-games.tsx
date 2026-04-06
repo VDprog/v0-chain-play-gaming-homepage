@@ -2,13 +2,13 @@
 
 import { GameCard } from "@/components/game-card"
 import { Button } from "@/components/ui/button"
-import { Handshake, Bomb, CircleDot, Clock, Timer, Crown, ArrowRight } from "lucide-react"
+import { ArrowRight } from "lucide-react"
 
 const games = [
   {
     title: "Split or Steal",
     description: "Trust or betray? A classic game theory challenge with real stakes.",
-    icon: Handshake,
+    iconName: "handshake" as const,
     players: 1243,
     badge: "Trending",
     badgeType: "trending" as const,
@@ -16,7 +16,7 @@ const games = [
   {
     title: "Pass the Bomb",
     description: "Quick reactions needed. Pass the bomb before time runs out.",
-    icon: Bomb,
+    iconName: "bomb" as const,
     players: 892,
     badge: "Live",
     badgeType: "live" as const,
@@ -24,13 +24,13 @@ const games = [
   {
     title: "Hidden Button",
     description: "Find the invisible button before anyone else. Speed wins.",
-    icon: CircleDot,
+    iconName: "circle-dot" as const,
     players: 567,
   },
   {
     title: "Speed Quiz",
     description: "Answer faster than opponents in rapid-fire trivia battles.",
-    icon: Clock,
+    iconName: "clock" as const,
     players: 2341,
     badge: "Popular",
     badgeType: "popular" as const,
@@ -38,13 +38,13 @@ const games = [
   {
     title: "Timer Challenge",
     description: "Stop the timer at exactly the right moment. Precision wins.",
-    icon: Timer,
+    iconName: "timer" as const,
     players: 456,
   },
   {
     title: "Last Survivor Quiz",
     description: "Answer correctly or get eliminated. Only one survives.",
-    icon: Crown,
+    iconName: "crown" as const,
     players: 1087,
     badge: "New",
     badgeType: "new" as const,

@@ -2,20 +2,33 @@
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Users, ArrowRight } from "lucide-react"
-import type { LucideIcon } from "lucide-react"
+import { Users, ArrowRight, Handshake, Bomb, CircleDot, Clock, Timer, Crown, Gamepad2 } from "lucide-react"
+
+const iconMap = {
+  handshake: Handshake,
+  bomb: Bomb,
+  "circle-dot": CircleDot,
+  clock: Clock,
+  timer: Timer,
+  crown: Crown,
+  gamepad: Gamepad2,
+} as const
+
+type IconName = keyof typeof iconMap
 
 interface GameCardProps {
   title: string
   description: string
-  icon: LucideIcon
+  iconName: IconName
   players: number
   badge?: string
   badgeType?: "trending" | "live" | "new" | "popular"
   slug?: string
 }
 
-export function GameCard({ title, description, icon: Icon, players, badge, badgeType = "popular", slug }: GameCardProps) {
+export function GameCard({ title, description, iconName, players, badge, badgeType = "popular", slug }: GameCardProps) {
+  const Icon = iconMap[iconName] || Gamepad2
+  
   const badgeStyles = {
     trending: "bg-primary text-primary-foreground",
     live: "bg-emerald-500 text-white",

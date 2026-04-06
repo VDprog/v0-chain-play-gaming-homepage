@@ -3,18 +3,31 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ChevronRight, Play, Users, Bomb } from "lucide-react"
-import type { LucideIcon } from "lucide-react"
+import { ChevronRight, Play, Users, Bomb, Handshake, CircleDot, Clock, Timer, Crown, Gamepad2 } from "lucide-react"
+
+const iconMap = {
+  bomb: Bomb,
+  handshake: Handshake,
+  "circle-dot": CircleDot,
+  clock: Clock,
+  timer: Timer,
+  crown: Crown,
+  gamepad: Gamepad2,
+} as const
+
+type IconName = keyof typeof iconMap
 
 interface GameHeroProps {
   title: string
   description: string
-  icon: LucideIcon
+  iconName: IconName
   tags: string[]
   slug: string
 }
 
-export function GameHero({ title, description, icon: Icon, tags, slug }: GameHeroProps) {
+export function GameHero({ title, description, iconName, tags, slug }: GameHeroProps) {
+  const Icon = iconMap[iconName] || Gamepad2
+  
   return (
     <section className="relative py-16 lg:py-20 overflow-hidden">
       {/* Background gradient */}

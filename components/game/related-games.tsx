@@ -8,26 +8,34 @@ interface RelatedGamesProps {
   currentSlug: string
 }
 
+const iconMap = {
+  handshake: Handshake,
+  "circle-dot": CircleDot,
+  clock: Clock,
+} as const
+
+type IconName = keyof typeof iconMap
+
 const relatedGames = [
   {
     slug: "split-or-steal",
     title: "Split or Steal",
     description: "Trust or betray? A classic game theory challenge.",
-    icon: Handshake,
+    iconName: "handshake" as IconName,
     players: 1243,
   },
   {
     slug: "hidden-button",
     title: "Hidden Button",
     description: "Find the invisible button before anyone else.",
-    icon: CircleDot,
+    iconName: "circle-dot" as IconName,
     players: 567,
   },
   {
     slug: "speed-quiz",
     title: "Speed Quiz",
     description: "Answer faster than opponents in rapid-fire trivia.",
-    icon: Clock,
+    iconName: "clock" as IconName,
     players: 2341,
   },
 ]
@@ -53,39 +61,42 @@ export function RelatedGames({ currentSlug }: RelatedGamesProps) {
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredGames.map((game) => (
-            <Link key={game.slug} href={`/games/${game.slug}`}>
-              <div className="group relative bg-card rounded-xl border border-border p-6 card-premium h-full">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary mb-5 transition-all duration-200 group-hover:bg-primary group-hover:text-primary-foreground group-hover:shadow-lg group-hover:shadow-primary/20 group-hover:scale-105">
-                  <game.icon className="h-6 w-6" />
-                </div>
-                
-                <h3 className="text-base font-semibold text-foreground mb-2 group-hover:text-primary transition-colors duration-200">
-                  {game.title}
-                </h3>
-                <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-                  {game.description}
-                </p>
-                
-                <div className="flex items-center justify-between mt-auto pt-5 border-t border-border">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1.5">
-                      <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                      </span>
-                      <Users className="h-3.5 w-3.5" />
-                    </div>
-                    <span className="font-medium">{new Intl.NumberFormat("en-US").format(game.players)}</span>
+          {filteredGames.map((game) => {
+            const Icon = iconMap[game.iconName]
+            return (
+              <Link key={game.slug} href={`/games/${game.slug}`}>
+                <div className="group relative bg-card rounded-xl border border-border p-6 card-premium h-full">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary mb-5 transition-all duration-200 group-hover:bg-primary group-hover:text-primary-foreground group-hover:shadow-lg group-hover:shadow-primary/20 group-hover:scale-105">
+                    <Icon className="h-6 w-6" />
                   </div>
-                  <Button size="sm" className="h-9 px-4 text-xs font-semibold gap-1.5">
-                    Play
-                    <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
-                  </Button>
+                  
+                  <h3 className="text-base font-semibold text-foreground mb-2 group-hover:text-primary transition-colors duration-200">
+                    {game.title}
+                  </h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+                    {game.description}
+                  </p>
+                  
+                  <div className="flex items-center justify-between mt-auto pt-5 border-t border-border">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        <Users className="h-3.5 w-3.5" />
+                      </div>
+                      <span className="font-medium">{new Intl.NumberFormat("en-US").format(game.players)}</span>
+                    </div>
+                    <Button size="sm" className="h-9 px-4 text-xs font-semibold gap-1.5">
+                      Play
+                      <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            )
+          })}
         </div>
       </div>
     </section>
