@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain } from "wagmi"
 import { Wallet, Check, Copy, ExternalLink, ChevronDown, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -44,14 +44,45 @@ interface WalletButtonProps {
 }
 
 export function WalletButton({ variant = "default", className }: WalletButtonProps) {
+  const [mounted, setMounted] = useState(false)
+  const [showConnectModal, setShowConnectModal] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Return a placeholder during SSR to prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <Button variant="outline" size="sm" className={`h-9 px-4 gap-2 font-medium ${className}`}>
+        <Wallet className="h-4 w-4 text-primary" />
+        {variant === "compact" ? "Connect" : "Connect Wallet"}
+      </Button>
+    )
+  }
+
+  return <WalletButtonInner variant={variant} className={className} showConnectModal={showConnectModal} setShowConnectModal={setShowConnectModal} copied={copied} setCopied={setCopied} />
+}
+
+function WalletButtonInner({ 
+  variant, 
+  className, 
+  showConnectModal, 
+  setShowConnectModal,
+  copied,
+  setCopied
+}: WalletButtonProps & { 
+  showConnectModal: boolean
+  setShowConnectModal: (v: boolean) => void
+  copied: boolean
+  setCopied: (v: boolean) => void
+}) {
   const { address, isConnected, isConnecting, connector } = useAccount()
   const { connect, connectors, isPending } = useConnect()
   const { disconnect } = useDisconnect()
   const chainId = useChainId()
   const { switchChain } = useSwitchChain()
-  
-  const [showConnectModal, setShowConnectModal] = useState(false)
-  const [copied, setCopied] = useState(false)
 
   const currentChain = supportedChains.find(c => c.id === chainId)
   const isWrongNetwork = isConnected && !currentChain

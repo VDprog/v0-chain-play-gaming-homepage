@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain } from "wagmi"
 import { Wallet, Check, Copy, ExternalLink, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -31,6 +31,39 @@ function shortenAddress(address: string): string {
 }
 
 export function ProfileWalletSection() {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Return a loading placeholder during SSR
+  if (!mounted) {
+    return (
+      <section className="mb-10">
+        <div className="rounded-xl bg-card border border-border p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+              <Wallet className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-foreground">Wallet</h2>
+              <p className="text-sm text-muted-foreground">Loading wallet...</p>
+            </div>
+          </div>
+          <div className="flex items-center justify-center gap-3 p-6 rounded-lg bg-muted/50 border border-border">
+            <Spinner className="h-5 w-5 text-primary" />
+            <p className="text-sm text-muted-foreground">Initializing...</p>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  return <ProfileWalletSectionInner />
+}
+
+function ProfileWalletSectionInner() {
   const { address, isConnected, isConnecting, connector } = useAccount()
   const { connect, connectors, isPending } = useConnect()
   const { disconnect } = useDisconnect()
