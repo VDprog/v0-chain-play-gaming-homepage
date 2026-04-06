@@ -1,20 +1,15 @@
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { ProfileWalletSection } from "@/components/wallet/profile-wallet-section"
 import { 
-  User,
   Trophy, 
   Flame,
   Target,
   Gamepad2,
-  Wallet,
-  Check,
-  Copy,
-  ExternalLink,
   ChevronRight,
   Zap,
   Star,
@@ -81,15 +76,6 @@ const iconMap: Record<string, LucideIcon> = {
 }
 
 export function ProfileContent() {
-  const [walletConnected, setWalletConnected] = useState(false)
-  const [copied, setCopied] = useState(false)
-
-  const handleCopyAddress = () => {
-    navigator.clipboard.writeText("0xA3f8...8F91")
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
   return (
     <main className="flex-1 py-12">
       <div className="container mx-auto px-6 lg:px-8">
@@ -148,71 +134,7 @@ export function ProfileContent() {
         </section>
 
         {/* Wallet Section */}
-        <section className="mb-10">
-          <div className="rounded-xl bg-card border border-border p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                <Wallet className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-foreground">Wallet</h2>
-                <p className="text-sm text-muted-foreground">
-                  {walletConnected ? "Connected to Tezos" : "Connect to save progress"}
-                </p>
-              </div>
-            </div>
-
-            {!walletConnected ? (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-lg bg-muted/50 border border-border">
-                <p className="text-sm text-muted-foreground">
-                  Connect your wallet to save progress, join ranked matches, and earn rewards.
-                </p>
-                <Button onClick={() => setWalletConnected(true)} className="shrink-0">
-                  <Wallet className="h-4 w-4 mr-2" />
-                  Connect Wallet
-                </Button>
-              </div>
-            ) : (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-lg bg-emerald-50 border border-emerald-200">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100">
-                    <Check className="h-4 w-4 text-emerald-600" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm font-medium text-foreground">0xA3f8...8F91</span>
-                      <button 
-                        onClick={handleCopyAddress}
-                        className="p-1 hover:bg-emerald-100 rounded transition-colors"
-                      >
-                        {copied ? (
-                          <Check className="h-3.5 w-3.5 text-emerald-600" />
-                        ) : (
-                          <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                        )}
-                      </button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Tezos Mainnet</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" className="text-muted-foreground">
-                    <ExternalLink className="h-4 w-4 mr-1" />
-                    View
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => setWalletConnected(false)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    Disconnect
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
+        <ProfileWalletSection />
 
         {/* Stats Grid */}
         <section className="mb-10">

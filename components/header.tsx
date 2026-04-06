@@ -2,9 +2,10 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Bell, Wallet, Gamepad2 } from "lucide-react"
+import { Bell, Gamepad2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { WalletButton } from "@/components/wallet/wallet-button"
 
 const navItems = [
   { label: "Home", href: "/" },
@@ -63,10 +64,7 @@ export function Header() {
             <Bell className="h-4 w-4" />
             <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary ring-2 ring-card" />
           </Button>
-          <Button variant="outline" size="sm" className="hidden sm:flex gap-2 h-9 px-3 text-sm font-medium">
-            <Wallet className="h-4 w-4 text-primary" />
-            <span className="font-mono text-xs">0x1a2...3b4c</span>
-          </Button>
+          <WalletButton variant="compact" className="hidden sm:flex" />
           <Link href="/profile">
             <Avatar className="h-9 w-9 ring-2 ring-border transition-all duration-200 hover:ring-primary/50 cursor-pointer">
               <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=Vlad" alt="User" />
