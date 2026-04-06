@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain } from "wagmi"
+import { useWalletReady } from "./wallet-provider"
 import { Wallet, Check, Copy, ExternalLink, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
@@ -31,14 +32,10 @@ function shortenAddress(address: string): string {
 }
 
 export function ProfileWalletSection() {
-  const [mounted, setMounted] = useState(false)
+  const walletReady = useWalletReady()
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  // Return a loading placeholder during SSR
-  if (!mounted) {
+  // Return a loading placeholder until WagmiProvider is ready
+  if (!walletReady) {
     return (
       <section className="mb-10">
         <div className="rounded-xl bg-card border border-border p-6">

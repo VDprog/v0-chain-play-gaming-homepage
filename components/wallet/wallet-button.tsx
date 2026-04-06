@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain } from "wagmi"
 import { Wallet, Check, Copy, ExternalLink, ChevronDown, AlertCircle } from "lucide-react"
+import { useWalletReady } from "./wallet-provider"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import {
@@ -44,16 +45,12 @@ interface WalletButtonProps {
 }
 
 export function WalletButton({ variant = "default", className }: WalletButtonProps) {
-  const [mounted, setMounted] = useState(false)
+  const walletReady = useWalletReady()
   const [showConnectModal, setShowConnectModal] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  // Return a placeholder during SSR to prevent hydration mismatch
-  if (!mounted) {
+  // Return a placeholder until WagmiProvider is ready
+  if (!walletReady) {
     return (
       <Button variant="outline" size="sm" className={`h-9 px-4 gap-2 font-medium ${className}`}>
         <Wallet className="h-4 w-4 text-primary" />
