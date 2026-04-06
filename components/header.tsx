@@ -8,16 +8,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 const navItems = [
   { label: "Home", href: "/" },
-  { label: "Games", href: "/#games" },
+  { label: "Games", href: "/games" },
   { label: "Live", href: "/#live", hasIndicator: true },
   { label: "Leaderboard", href: "/leaderboard" },
 ]
 
 function isActivePath(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/"
+  if (href === "/games") return pathname === "/games" || pathname.startsWith("/games/")
   if (href.startsWith("/#")) return pathname === "/"
   if (href === "/leaderboard") return pathname === "/leaderboard"
-  return pathname.startsWith(href.replace("/#", "/"))
+  return pathname.startsWith(href)
 }
 
 export function Header() {
@@ -35,8 +36,7 @@ export function Header() {
           </Link>
           <nav className="hidden md:flex items-center gap-1">
             {navItems.map((item) => {
-              const isActive = isActivePath(pathname, item.href) || 
-                (item.href === "/#games" && pathname.startsWith("/games"))
+              const isActive = isActivePath(pathname, item.href)
               
               return (
                 <Link

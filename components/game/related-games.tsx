@@ -2,46 +2,24 @@
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Handshake, CircleDot, Clock, ArrowRight, Users } from "lucide-react"
+import { Handshake, CircleDot, Clock, Timer, Crown, Bomb, ArrowRight, Users, Gamepad2 } from "lucide-react"
+import { getRelatedGames, type IconName } from "@/lib/games-data"
 
 interface RelatedGamesProps {
   currentSlug: string
 }
 
-const iconMap = {
+const iconMap: Record<IconName, React.ComponentType<{ className?: string }>> = {
   handshake: Handshake,
   "circle-dot": CircleDot,
   clock: Clock,
-} as const
-
-type IconName = keyof typeof iconMap
-
-const relatedGames = [
-  {
-    slug: "split-or-steal",
-    title: "Split or Steal",
-    description: "Trust or betray? A classic game theory challenge.",
-    iconName: "handshake" as IconName,
-    players: 1243,
-  },
-  {
-    slug: "hidden-button",
-    title: "Hidden Button",
-    description: "Find the invisible button before anyone else.",
-    iconName: "circle-dot" as IconName,
-    players: 567,
-  },
-  {
-    slug: "speed-quiz",
-    title: "Speed Quiz",
-    description: "Answer faster than opponents in rapid-fire trivia.",
-    iconName: "clock" as IconName,
-    players: 2341,
-  },
-]
+  timer: Timer,
+  crown: Crown,
+  bomb: Bomb,
+}
 
 export function RelatedGames({ currentSlug }: RelatedGamesProps) {
-  const filteredGames = relatedGames.filter(game => game.slug !== currentSlug)
+  const relatedGames = getRelatedGames(currentSlug, 3)
 
   return (
     <section className="py-16 bg-muted/30 border-t border-border">
@@ -52,7 +30,7 @@ export function RelatedGames({ currentSlug }: RelatedGamesProps) {
             <h2 className="text-2xl font-bold text-foreground mt-2">Try Similar Games</h2>
             <p className="mt-2 text-muted-foreground">More games you might enjoy</p>
           </div>
-          <Link href="/#games">
+          <Link href="/games">
             <Button variant="outline" className="gap-2 font-semibold">
               View all games
               <ArrowRight className="h-4 w-4" />
@@ -61,8 +39,8 @@ export function RelatedGames({ currentSlug }: RelatedGamesProps) {
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredGames.map((game) => {
-            const Icon = iconMap[game.iconName]
+          {relatedGames.map((game) => {
+            const Icon = iconMap[game.iconName] || Gamepad2
             return (
               <Link key={game.slug} href={`/games/${game.slug}`}>
                 <div className="group relative bg-card rounded-xl border border-border p-6 card-premium h-full">
@@ -86,7 +64,7 @@ export function RelatedGames({ currentSlug }: RelatedGamesProps) {
                         </span>
                         <Users className="h-3.5 w-3.5" />
                       </div>
-                      <span className="font-medium">{new Intl.NumberFormat("en-US").format(game.players)}</span>
+                      <span className="font-medium">{new Intl.NumberFormat("en-US").format(game.playersOnline)}</span>
                     </div>
                     <Button size="sm" className="h-9 px-4 text-xs font-semibold gap-1.5">
                       Play

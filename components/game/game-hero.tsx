@@ -39,7 +39,7 @@ export function GameHero({ title, description, iconName, tags, slug }: GameHeroP
         <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-8">
           <Link href="/" className="hover:text-primary transition-colors">Home</Link>
           <ChevronRight className="h-4 w-4" />
-          <Link href="/#games" className="hover:text-primary transition-colors">Games</Link>
+          <Link href="/games" className="hover:text-primary transition-colors">Games</Link>
           <ChevronRight className="h-4 w-4" />
           <span className="text-foreground font-medium">{title}</span>
         </nav>
