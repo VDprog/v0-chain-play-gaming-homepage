@@ -1,6 +1,7 @@
 "use client"
 
-import { ChevronRight, Radio, Bomb, Crown, HelpCircle, CircleDot } from "lucide-react"
+import Link from "next/link"
+import { ChevronRight, Radio, Bomb, Crown, HelpCircle, CircleDot, ArrowRight } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 interface LiveRoom {
@@ -66,9 +67,13 @@ export function LiveGames() {
         ))}
       </div>
       <div className="px-5 py-3 border-t border-border bg-muted/20">
-        <button className="w-full text-center text-sm font-medium text-primary hover:underline underline-offset-4">
+        <Link 
+          href="/live" 
+          className="flex items-center justify-center gap-2 w-full text-center text-sm font-medium text-primary hover:underline underline-offset-4"
+        >
           Browse all live games
-        </button>
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
       </div>
     </div>
   )
