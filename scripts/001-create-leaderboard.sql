@@ -1,7 +1,7 @@
 -- Create leaderboard_stats table
 CREATE TABLE IF NOT EXISTS leaderboard_stats (
   id SERIAL PRIMARY KEY,
-  username TEXT NOT NULL,
+  username TEXT NOT NULL UNIQUE,
   avatar_url TEXT,
   favorite_game TEXT NOT NULL,
   wins INTEGER DEFAULT 0,
@@ -43,7 +43,7 @@ CREATE TRIGGER set_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
--- Insert sample data (using ON CONFLICT to avoid duplicates)
+-- Insert sample data (using ON CONFLICT with username as conflict target)
 INSERT INTO leaderboard_stats (username, avatar_url, favorite_game, wins, games_played, win_rate, earnings, streak)
 VALUES 
   ('Vlad', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Vlad', 'Pass the Bomb', 156, 203, 76.85, 12450.50, 8),
@@ -51,4 +51,4 @@ VALUES
   ('Panda', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Panda', 'Speed Quiz', 128, 175, 73.14, 8540.00, 12),
   ('Jack', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jack', 'Timer', 98, 156, 62.82, 6230.75, 3),
   ('Adam', 'https://api.dicebear.com/7.x/avataaars/svg?seed=Adam', 'Hidden Button', 87, 142, 61.27, 5120.30, 6)
-ON CONFLICT DO NOTHING;
+ON CONFLICT (username) DO NOTHING;
