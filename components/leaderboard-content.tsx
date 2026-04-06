@@ -7,13 +7,13 @@ import { Badge } from "@/components/ui/badge"
 import { 
   Crown, 
   Trophy, 
-  Medal,
   Flame,
   Users,
   Gamepad2,
   ChevronRight,
   Sparkles
 } from "lucide-react"
+import { toast } from "sonner"
 
 interface LeaderboardPlayer {
   id: number
@@ -60,6 +60,32 @@ export function LeaderboardContent({ initialData }: LeaderboardContentProps) {
   const [activeTimeFilter, setActiveTimeFilter] = useState("Weekly")
   const [activeGameFilter, setActiveGameFilter] = useState("All Games")
 
+  const handleTimeFilterChange = (filter: string) => {
+    setActiveTimeFilter(filter)
+    toast.info(`Showing ${filter.toLowerCase()} rankings`, {
+      description: `Leaderboard updated to ${filter.toLowerCase()} results`,
+    })
+  }
+
+  const handleGameFilterChange = (filter: string) => {
+    setActiveGameFilter(filter)
+    toast.info(`Filtered by ${filter}`, {
+      description: filter === "All Games" ? "Showing rankings for all games" : `Showing ${filter} rankings only`,
+    })
+  }
+
+  const handleLoadMore = () => {
+    toast.info("Loading more players...", {
+      description: "This feature will load additional rankings",
+    })
+  }
+
+  const handleViewProfile = (playerName: string) => {
+    toast.info(`${playerName}'s Profile`, {
+      description: "Player profiles coming soon!",
+    })
+  }
+
   // Transform data for display
   const rankedData = initialData.map((player, index) => ({
     ...player,
@@ -94,7 +120,7 @@ export function LeaderboardContent({ initialData }: LeaderboardContentProps) {
               {timeFilters.map((filter) => (
                 <button
                   key={filter}
-                  onClick={() => setActiveTimeFilter(filter)}
+                  onClick={() => handleTimeFilterChange(filter)}
                   className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ${
                     activeTimeFilter === filter
                       ? "bg-card text-foreground shadow-sm"
@@ -107,7 +133,7 @@ export function LeaderboardContent({ initialData }: LeaderboardContentProps) {
             </div>
             <select 
               value={activeGameFilter}
-              onChange={(e) => setActiveGameFilter(e.target.value)}
+              onChange={(e) => handleGameFilterChange(e.target.value)}
               className="h-9 px-3 text-sm font-medium rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
             >
               {gameFilters.map((filter) => (
@@ -283,7 +309,7 @@ export function LeaderboardContent({ initialData }: LeaderboardContentProps) {
                 </table>
               </div>
               <div className="px-6 py-4 border-t border-border bg-muted/30">
-                <Button variant="ghost" size="sm" className="text-primary hover:text-primary hover:bg-primary/5">
+                <Button variant="ghost" size="sm" className="text-primary hover:text-primary hover:bg-primary/5" onClick={handleLoadMore}>
                   Load More
                   <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
@@ -362,7 +388,7 @@ export function LeaderboardContent({ initialData }: LeaderboardContentProps) {
                       <p className="text-xs text-muted-foreground">Streak</p>
                     </div>
                   </div>
-                  <Button className="w-full" size="sm">
+                  <Button className="w-full" size="sm" onClick={() => handleViewProfile(rankedData[0].username)}>
                     View Profile
                     <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>

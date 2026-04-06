@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Radio, Users, Zap, ArrowRight, Gamepad2 } from "lucide-react"
 import Link from "next/link"
+import { toast } from "sonner"
 
 export function LiveHero() {
   return (
@@ -54,7 +55,20 @@ export function LiveHero() {
           
           {/* CTAs */}
           <div className="flex items-center justify-center gap-4 mt-10">
-            <Button size="lg" className="gap-2 font-semibold px-6 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 transition-all duration-300">
+            <Button 
+              size="lg" 
+              className="gap-2 font-semibold px-6 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 transition-all duration-300"
+              onClick={() => {
+                toast.promise(
+                  new Promise((resolve) => setTimeout(resolve, 1500)),
+                  {
+                    loading: "Finding the best available room...",
+                    success: "Found a match! Joining Pass the Bomb Room #301",
+                    error: "No available rooms right now. Try again later.",
+                  }
+                )
+              }}
+            >
               <Zap className="h-4 w-4" />
               Quick Join
             </Button>

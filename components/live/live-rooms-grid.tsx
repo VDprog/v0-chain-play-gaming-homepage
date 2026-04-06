@@ -6,6 +6,7 @@ import {
   Bomb, HelpCircle, Handshake, Timer, Crown, CircleDot,
   Users, Eye, ArrowRight, Clock
 } from "lucide-react"
+import { toast } from "sonner"
 import type { LucideIcon } from "lucide-react"
 
 interface LiveRoom {
@@ -104,6 +105,36 @@ function RoomCard({ room }: { room: LiveRoom }) {
   }
   const config = statusConfig[room.status]
 
+  const handleJoin = () => {
+    if (room.status === "live") {
+      toast.info("Match in Progress", {
+        description: `${room.title} ${room.roomNumber} is currently live. You'll join after the current round.`,
+      })
+      return
+    }
+    if (room.players >= room.maxPlayers) {
+      toast.error("Room Full", {
+        description: "This room is at maximum capacity. Try another room.",
+      })
+      return
+    }
+    toast.success(`Joining ${room.title}`, {
+      description: `Room ${room.roomNumber} - Get ready to play!`,
+    })
+  }
+
+  const handleWatch = () => {
+    if (room.status === "waiting") {
+      toast.info("Match Not Started", {
+        description: "The match hasn't started yet. Join as a player instead!",
+      })
+      return
+    }
+    toast.success("Spectator Mode", {
+      description: `Now watching ${room.title} ${room.roomNumber}`,
+    })
+  }
+
   return (
     <div className="group flex flex-col rounded-xl border border-border bg-card p-5 transition-all duration-200 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-1 cursor-pointer">
       {/* Header */}
@@ -167,6 +198,7 @@ function RoomCard({ room }: { room: LiveRoom }) {
           size="sm" 
           variant={room.status === "waiting" ? "default" : "outline"} 
           className="h-8 px-4 text-xs font-semibold gap-1.5 transition-all duration-200"
+          onClick={room.status === "waiting" || room.status === "starting" ? handleJoin : handleWatch}
         >
           {room.status === "waiting" || room.status === "starting" ? (
             <>Join<ArrowRight className="h-3 w-3" /></>

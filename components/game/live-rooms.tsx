@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Users, Eye, Plus } from "lucide-react"
+import { toast } from "sonner"
 
 interface LiveRoomsProps {
   gameTitle: string
@@ -59,6 +60,36 @@ const rooms = [
 ]
 
 export function LiveRooms({ gameTitle }: LiveRoomsProps) {
+  const handleJoinRoom = (roomId: number, status: string) => {
+    if (status === "Live") {
+      toast.info("Room in progress", {
+        description: `Room #${roomId} is currently live. Watch or wait for the next round.`,
+      })
+      return
+    }
+    toast.success(`Joining Room #${roomId}`, {
+      description: `Get ready for ${gameTitle}!`,
+    })
+  }
+
+  const handleSpectate = (roomId: number) => {
+    toast.success("Spectator Mode", {
+      description: `Now watching Room #${roomId}`,
+    })
+  }
+
+  const handleCreateRoom = () => {
+    toast.success("Creating Room", {
+      description: `Setting up a new ${gameTitle} room...`,
+    })
+  }
+
+  const handleViewResults = (roomId: number) => {
+    toast.info("Match Results", {
+      description: `Viewing results for Room #${roomId}`,
+    })
+  }
+
   const getStatusStyles = (status: string) => {
     switch (status) {
       case "Waiting":
@@ -83,7 +114,7 @@ export function LiveRooms({ gameTitle }: LiveRoomsProps) {
             <h2 className="text-2xl font-bold text-foreground mt-2">Live Rooms</h2>
             <p className="mt-2 text-muted-foreground">Jump into an active game or create your own</p>
           </div>
-          <Button className="gap-2 font-semibold self-start sm:self-auto">
+          <Button className="gap-2 font-semibold self-start sm:self-auto" onClick={handleCreateRoom}>
             <Plus className="h-4 w-4" />
             Create Room
           </Button>
@@ -137,13 +168,13 @@ export function LiveRooms({ gameTitle }: LiveRoomsProps) {
 
               <div className="flex gap-2">
                 {room.status === "Waiting" && (
-                  <Button size="sm" className="flex-1 h-9 text-xs font-semibold">
+                  <Button size="sm" className="flex-1 h-9 text-xs font-semibold" onClick={() => handleJoinRoom(room.id, room.status)}>
                     Join Room
                   </Button>
                 )}
                 {room.status === "Live" && (
                   <>
-                    <Button size="sm" variant="outline" className="flex-1 h-9 text-xs font-semibold gap-1.5">
+                    <Button size="sm" variant="outline" className="flex-1 h-9 text-xs font-semibold gap-1.5" onClick={() => handleSpectate(room.id)}>
                       <Eye className="h-3.5 w-3.5" />
                       Spectate
                     </Button>
@@ -155,7 +186,7 @@ export function LiveRooms({ gameTitle }: LiveRoomsProps) {
                   </Button>
                 )}
                 {room.status === "Finished" && (
-                  <Button size="sm" variant="outline" className="flex-1 h-9 text-xs font-semibold">
+                  <Button size="sm" variant="outline" className="flex-1 h-9 text-xs font-semibold" onClick={() => handleViewResults(room.id)}>
                     View Results
                   </Button>
                 )}

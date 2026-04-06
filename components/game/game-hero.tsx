@@ -4,6 +4,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ChevronRight, Play, Users, Bomb, Handshake, CircleDot, Clock, Timer, Crown, Gamepad2 } from "lucide-react"
+import { toast } from "sonner"
 
 const iconMap = {
   bomb: Bomb,
@@ -72,11 +73,33 @@ export function GameHero({ title, description, iconName, tags, slug }: GameHeroP
             </p>
 
             <div className="flex flex-wrap gap-4">
-              <Button size="lg" className="h-12 px-8 text-base font-semibold gap-2 shadow-lg shadow-primary/25">
+              <Button 
+                size="lg" 
+                className="h-12 px-8 text-base font-semibold gap-2 shadow-lg shadow-primary/25"
+                onClick={() => {
+                  toast.success("Finding a room...", {
+                    description: `Looking for the best ${title} room for you`,
+                  })
+                }}
+              >
                 <Play className="h-5 w-5" />
                 Play Now
               </Button>
-              <Button size="lg" variant="outline" className="h-12 px-8 text-base font-semibold gap-2">
+              <Button 
+                size="lg" 
+                variant="outline" 
+                className="h-12 px-8 text-base font-semibold gap-2"
+                onClick={() => {
+                  const liveRoomsSection = document.getElementById("live-rooms")
+                  if (liveRoomsSection) {
+                    liveRoomsSection.scrollIntoView({ behavior: "smooth" })
+                  } else {
+                    toast.info("Browse Live Rooms", {
+                      description: "Check out the available rooms below",
+                    })
+                  }
+                }}
+              >
                 <Users className="h-5 w-5" />
                 Join Live Room
               </Button>

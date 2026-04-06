@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, Play, Users, Zap, Trophy, Star } from "lucide-react"
 
@@ -57,13 +58,17 @@ export function Hero() {
           
           {/* CTAs with premium styling */}
           <div className="mt-12 flex flex-wrap items-center justify-center gap-4">
-            <Button size="lg" className="h-14 gap-3 px-8 text-base font-semibold shadow-xl shadow-primary/25 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/30 hover:scale-[1.03] animate-glow">
-              <Play className="h-5 w-5" />
-              Start Playing
-              <ArrowRight className="h-4 w-4 ml-1 transition-transform duration-300 group-hover:translate-x-1" />
+            <Button size="lg" className="h-14 gap-3 px-8 text-base font-semibold shadow-xl shadow-primary/25 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/30 hover:scale-[1.03] animate-glow" asChild>
+              <Link href="/games">
+                <Play className="h-5 w-5" />
+                Start Playing
+                <ArrowRight className="h-4 w-4 ml-1 transition-transform duration-300 group-hover:translate-x-1" />
+              </Link>
             </Button>
-            <Button size="lg" variant="outline" className="h-14 gap-3 px-8 text-base font-semibold border-2 transition-all duration-300 hover:bg-primary/5 hover:border-primary/30 hover:shadow-lg">
-              Browse Games
+            <Button size="lg" variant="outline" className="h-14 gap-3 px-8 text-base font-semibold border-2 transition-all duration-300 hover:bg-primary/5 hover:border-primary/30 hover:shadow-lg" asChild>
+              <Link href="/games">
+                Browse Games
+              </Link>
             </Button>
           </div>
           

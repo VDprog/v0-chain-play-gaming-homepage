@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -20,6 +21,7 @@ import {
   HelpCircle,
   Clock
 } from "lucide-react"
+import { toast } from "sonner"
 import type { LucideIcon } from "lucide-react"
 
 // Mock profile data
@@ -76,6 +78,32 @@ const iconMap: Record<string, LucideIcon> = {
 }
 
 export function ProfileContent() {
+  const router = useRouter()
+
+  const handleViewAllMatches = () => {
+    toast.info("Match History", {
+      description: "Full match history coming soon!",
+    })
+  }
+
+  const handleMatchClick = (match: typeof recentMatches[0]) => {
+    toast.info(`${match.game} vs ${match.opponent}`, {
+      description: `${match.result === "win" ? "Victory" : "Defeat"} - ${match.reward}`,
+    })
+  }
+
+  const handleAchievementClick = (achievement: typeof achievements[0]) => {
+    if (achievement.unlocked) {
+      toast.success(achievement.name, {
+        description: achievement.description,
+      })
+    } else {
+      toast.info(`${achievement.name} - Locked`, {
+        description: `Complete: ${achievement.description}`,
+      })
+    }
+  }
+
   return (
     <main className="flex-1 py-12">
       <div className="container mx-auto px-6 lg:px-8">
@@ -168,7 +196,7 @@ export function ProfileContent() {
                 </div>
                 <h2 className="text-xl font-bold text-foreground">Recent Matches</h2>
               </div>
-              <Button variant="ghost" size="sm" className="text-primary">
+              <Button variant="ghost" size="sm" className="text-primary" onClick={handleViewAllMatches}>
                 View All
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
@@ -178,7 +206,7 @@ export function ProfileContent() {
               <div className="rounded-xl bg-card border border-border overflow-hidden">
                 <div className="divide-y divide-border">
                   {recentMatches.map((match) => (
-                    <div key={match.id} className="px-5 py-4 hover:bg-muted/50 transition-colors">
+                    <div key={match.id} className="px-5 py-4 hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => handleMatchClick(match)}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${
@@ -252,11 +280,12 @@ export function ProfileContent() {
                 {achievements.map((achievement) => (
                   <div 
                     key={achievement.id} 
-                    className={`p-4 rounded-xl border transition-all ${
+                    className={`p-4 rounded-xl border transition-all cursor-pointer ${
                       achievement.unlocked 
                         ? "bg-card border-border hover:border-primary/20" 
-                        : "bg-muted/30 border-dashed border-border opacity-60"
+                        : "bg-muted/30 border-dashed border-border opacity-60 hover:opacity-80"
                     }`}
+                    onClick={() => handleAchievementClick(achievement)}
                   >
                     <div className="flex items-start gap-3">
                       <div className={`flex h-10 w-10 items-center justify-center rounded-xl shrink-0 ${achievement.color}`}>

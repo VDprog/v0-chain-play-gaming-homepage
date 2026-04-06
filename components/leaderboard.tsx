@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Trophy, Flame, TrendingUp } from "lucide-react"
 
@@ -47,9 +48,9 @@ export function Leaderboard() {
           <Trophy className="h-4 w-4 text-primary" />
           <h3 className="font-semibold text-foreground">Top Players</h3>
         </div>
-        <a href="#leaderboard" className="text-xs font-semibold text-primary hover:underline underline-offset-2">
+        <Link href="/leaderboard" className="text-xs font-semibold text-primary hover:underline underline-offset-2">
           View all
-        </a>
+        </Link>
       </div>
       <div className="divide-y divide-border">
         {players.map((player) => (

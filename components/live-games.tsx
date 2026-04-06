@@ -1,7 +1,9 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { ChevronRight, Radio, Bomb, Crown, HelpCircle, CircleDot, ArrowRight } from "lucide-react"
+import { toast } from "sonner"
 import type { LucideIcon } from "lucide-react"
 
 interface LiveRoom {
@@ -21,6 +23,25 @@ const liveRooms: LiveRoom[] = [
 ]
 
 export function LiveGames() {
+  const router = useRouter()
+
+  const handleRoomClick = (room: LiveRoom) => {
+    if (room.status === "live") {
+      toast.info(`${room.title} is live`, {
+        description: `${room.players} players. ${room.prize ? `Prize: ${room.prize}` : ""}`,
+        action: {
+          label: "Watch",
+          onClick: () => router.push("/live"),
+        },
+      })
+    } else {
+      toast.success(`Joining ${room.title}`, {
+        description: "Finding the best available slot...",
+      })
+      router.push("/live")
+    }
+  }
+
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
       <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-muted/30">
@@ -39,6 +60,7 @@ export function LiveGames() {
         {liveRooms.map((room) => (
           <button
             key={room.title}
+            onClick={() => handleRoomClick(room)}
             className="group flex items-center justify-between w-full px-5 py-4 text-left transition-all duration-200 hover:bg-muted/50"
           >
             <div className="flex items-center gap-3">

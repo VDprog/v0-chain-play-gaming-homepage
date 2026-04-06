@@ -2,8 +2,20 @@
 
 import { Button } from "@/components/ui/button"
 import { Zap, Shuffle, ArrowRight } from "lucide-react"
+import { toast } from "sonner"
 
 export function QuickJoinStrip() {
+  const handleQuickJoin = () => {
+    toast.promise(
+      new Promise((resolve) => setTimeout(resolve, 1500)),
+      {
+        loading: "Finding the fastest available room...",
+        success: "Found a match! Joining Split or Steal Room #156",
+        error: "No available rooms right now. Try again later.",
+      }
+    )
+  }
+
   return (
     <section className="py-12 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5">
       <div className="container mx-auto px-6 lg:px-8">
@@ -17,7 +29,7 @@ export function QuickJoinStrip() {
               <p className="text-muted-foreground mt-1">Jump into the fastest available room instantly.</p>
             </div>
           </div>
-          <Button size="lg" className="gap-2 font-semibold px-8 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 transition-all duration-300 whitespace-nowrap">
+          <Button size="lg" className="gap-2 font-semibold px-8 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 transition-all duration-300 whitespace-nowrap" onClick={handleQuickJoin}>
             <Zap className="h-5 w-5" />
             Quick Join Random Room
             <ArrowRight className="h-4 w-4" />

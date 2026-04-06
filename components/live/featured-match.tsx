@@ -2,7 +2,8 @@
 
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Bomb, Eye, ArrowRight, Users, Timer } from "lucide-react"
+import { Bomb, Eye, ArrowRight, Users } from "lucide-react"
+import { toast } from "sonner"
 
 const players = [
   { name: "Vlad", initials: "VL", position: 0, isHolder: true },
@@ -14,6 +15,18 @@ const players = [
 ]
 
 export function FeaturedMatch() {
+  const handleJoinRoom = () => {
+    toast.info("Match in Progress", {
+      description: "Pass the Bomb Room #204 is currently in Round 4. You'll join after this round ends.",
+    })
+  }
+
+  const handleWatchMatch = () => {
+    toast.success("Spectator Mode", {
+      description: "Now watching Pass the Bomb Room #204",
+    })
+  }
+
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-lg">
       {/* Header */}
@@ -128,11 +141,11 @@ export function FeaturedMatch() {
       
       {/* Actions */}
       <div className="flex items-center gap-3 px-6 py-4 border-t border-border bg-muted/20">
-        <Button className="flex-1 gap-2 font-semibold shadow-md shadow-primary/20">
+        <Button className="flex-1 gap-2 font-semibold shadow-md shadow-primary/20" onClick={handleJoinRoom}>
           Join Room
           <ArrowRight className="h-4 w-4" />
         </Button>
-        <Button variant="outline" className="flex-1 gap-2 font-semibold">
+        <Button variant="outline" className="flex-1 gap-2 font-semibold" onClick={handleWatchMatch}>
           <Eye className="h-4 w-4" />
           Watch Match
         </Button>
