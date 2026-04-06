@@ -13,6 +13,13 @@ const navItems = [
   { label: "Leaderboard", href: "/leaderboard" },
 ]
 
+function isActivePath(pathname: string, href: string): boolean {
+  if (href === "/") return pathname === "/"
+  if (href.startsWith("/#")) return pathname === "/"
+  if (href === "/leaderboard") return pathname === "/leaderboard"
+  return pathname.startsWith(href.replace("/#", "/"))
+}
+
 export function Header() {
   const pathname = usePathname()
 
@@ -28,9 +35,8 @@ export function Header() {
           </Link>
           <nav className="hidden md:flex items-center gap-1">
             {navItems.map((item) => {
-              const isActive = item.href === "/" 
-                ? pathname === "/" 
-                : pathname.startsWith(item.href.replace("/#", "/"))
+              const isActive = isActivePath(pathname, item.href) || 
+                (item.href === "/#games" && pathname.startsWith("/games"))
               
               return (
                 <Link
