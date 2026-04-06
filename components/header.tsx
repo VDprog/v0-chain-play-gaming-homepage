@@ -18,6 +18,7 @@ function isActivePath(pathname: string, href: string): boolean {
   if (href === "/games") return pathname === "/games" || pathname.startsWith("/games/")
   if (href === "/live") return pathname === "/live"
   if (href === "/leaderboard") return pathname === "/leaderboard"
+  if (href === "/profile") return pathname === "/profile"
   return pathname.startsWith(href)
 }
 
@@ -66,10 +67,12 @@ export function Header() {
             <Wallet className="h-4 w-4 text-primary" />
             <span className="font-mono text-xs">0x1a2...3b4c</span>
           </Button>
-          <Avatar className="h-9 w-9 ring-2 ring-border transition-all duration-200 hover:ring-primary/50 cursor-pointer">
-            <AvatarImage src="/placeholder.svg" alt="User" />
-            <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs">VP</AvatarFallback>
-          </Avatar>
+          <Link href="/profile">
+            <Avatar className="h-9 w-9 ring-2 ring-border transition-all duration-200 hover:ring-primary/50 cursor-pointer">
+              <AvatarImage src="https://api.dicebear.com/7.x/avataaars/svg?seed=Vlad" alt="User" />
+              <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs">VL</AvatarFallback>
+            </Avatar>
+          </Link>
         </div>
       </div>
     </header>
