@@ -9,10 +9,10 @@ async function getLeaderboardData() {
   const supabase = await createClient()
   
   const { data, error } = await supabase
-    .from("leaderboard_stats")
+    .from("leaderboard_view")
     .select("*")
     .order("wins", { ascending: false })
-    .limit(20)
+    .limit(50)
   
   if (error) {
     console.error("Error fetching leaderboard:", error)
