@@ -3,13 +3,14 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { GameHero } from "@/components/game/game-hero"
 import { GameStats } from "@/components/game/game-stats"
-import { LiveRooms } from "@/components/game/live-rooms"
+import { RoomList } from "@/components/room/room-list"
 import { GameRoom } from "@/components/game/game-room"
 import { GameRules } from "@/components/game/game-rules"
 import { RecentMatches } from "@/components/game/recent-matches"
 import { PlayerStats } from "@/components/game/player-stats"
 import { RelatedGames } from "@/components/game/related-games"
 import { getGameBySlug, getAllSlugs } from "@/lib/games-data"
+import { createClient } from "@/lib/supabase/server"
 
 export async function generateStaticParams() {
   return getAllSlugs().map((slug) => ({ slug }))
@@ -36,6 +37,16 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
   if (!game) {
     notFound()
   }
+
+  // Fetch initial rooms for this game
+  const supabase = await createClient()
+  const { data: rooms } = await supabase
+    .from("rooms_with_players")
+    .select("*")
+    .eq("game_slug", slug)
+    .neq("status", "finished")
+    .order("created_at", { ascending: false })
+    .limit(20)
   
   return (
     <div className="min-h-screen bg-background">
@@ -54,7 +65,15 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
           avgMatchTime={game.avgMatchTime}
           bestStreak={game.bestStreak}
         />
-        <LiveRooms gameTitle={game.title} />
+        <section className="py-16 bg-muted/30">
+          <div className="container mx-auto px-6 lg:px-8">
+            <RoomList 
+              gameSlug={slug} 
+              gameTitle={game.title} 
+              initialRooms={rooms || []} 
+            />
+          </div>
+        </section>
         <GameRoom gameTitle={game.title} />
         <GameRules />
         <section className="py-16 bg-background">
