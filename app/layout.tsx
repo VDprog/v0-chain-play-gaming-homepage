@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { WalletProvider } from '@/components/wallet/wallet-provider'
+import { PlayerProvider } from '@/components/player/player-provider'
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
@@ -40,7 +41,9 @@ export default function RootLayout({
     <html lang="en">
       <body className="font-sans antialiased">
         <WalletProvider>
-          {children}
+          <PlayerProvider>
+            {children}
+          </PlayerProvider>
         </WalletProvider>
         <Toaster position="bottom-right" richColors closeButton />
         {process.env.NODE_ENV === 'production' && <Analytics />}

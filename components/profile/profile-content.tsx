@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Spinner } from "@/components/ui/spinner"
 import { ProfileWalletSection } from "@/components/wallet/profile-wallet-section"
 import { PlayerRegistrationModal } from "@/components/modals/player-registration-modal"
-import { usePlayer } from "@/hooks/use-player"
+import { usePlayer } from "@/components/player/player-provider"
 import { 
   Trophy, 
   Flame,
