@@ -1,11 +1,14 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Spinner } from "@/components/ui/spinner"
 import { ProfileWalletSection } from "@/components/wallet/profile-wallet-section"
+import { PlayerRegistrationModal } from "@/components/modals/player-registration-modal"
+import { usePlayer } from "@/hooks/use-player"
 import { 
   Trophy, 
   Flame,
@@ -19,35 +22,13 @@ import {
   Crown,
   Bomb,
   HelpCircle,
-  Clock
+  Clock,
+  Wallet
 } from "lucide-react"
 import { toast } from "sonner"
 import type { LucideIcon } from "lucide-react"
 
-// Mock profile data
-const profileData = {
-  username: "Vlad",
-  avatarUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=Vlad",
-  status: "On a 6 win streak",
-  favoriteGame: "Pass the Bomb",
-  rankBadge: "Top 5%",
-  wins: 156,
-  winRate: 76.85,
-  totalEarnings: 12450.50,
-  gamesPlayed: 203,
-  currentStreak: 6,
-  bestStreak: 12,
-}
-
-const statsCards = [
-  { label: "Total Wins", value: "156", icon: Trophy, color: "text-amber-500" },
-  { label: "Games Played", value: "203", icon: Gamepad2, color: "text-primary" },
-  { label: "Win Rate", value: "76.8%", icon: Target, color: "text-emerald-500" },
-  { label: "Current Streak", value: "6", icon: Flame, color: "text-orange-500" },
-  { label: "Best Streak", value: "12", icon: Zap, color: "text-purple-500" },
-  { label: "Total Earnings", value: "12.4K XTZ", icon: Star, color: "text-cyan-500" },
-]
-
+// Static data for sections not yet backed by database
 const recentMatches = [
   { id: 1, opponent: "Eva", game: "Pass the Bomb", result: "win", reward: "+5 XTZ", time: "2m ago", players: 4 },
   { id: 2, opponent: "Panda", game: "Split or Steal", result: "win", reward: "+8 XTZ", time: "15m ago", players: 2 },
@@ -71,14 +52,13 @@ const favoriteGames = [
   { slug: "speed-quiz", name: "Speed Quiz", wins: 33, icon: HelpCircle },
 ]
 
-const iconMap: Record<string, LucideIcon> = {
-  bomb: Bomb,
-  shield: Shield,
-  "help-circle": HelpCircle,
-}
-
 export function ProfileContent() {
-  const router = useRouter()
+  const { player, isLoading, isConnected, createOrUpdatePlayer } = usePlayer()
+  const [showRegistration, setShowRegistration] = useState(false)
+
+  const handleRegister = async (data: { username: string; avatar_url: string; wallet_chain: string }) => {
+    await createOrUpdatePlayer(data)
+  }
 
   const handleViewAllMatches = () => {
     toast.info("Match History", {
@@ -104,6 +84,95 @@ export function ProfileContent() {
     }
   }
 
+  // Calculate derived stats
+  const stats = player?.stats
+  const wins = stats?.wins ?? 0
+  const gamesPlayed = stats?.games_played ?? 0
+  const winRate = gamesPlayed > 0 ? ((wins / gamesPlayed) * 100).toFixed(1) : "0.0"
+  const currentStreak = stats?.current_streak ?? 0
+  const bestStreak = stats?.best_streak ?? 0
+  const earnings = stats?.earnings_total ?? 0
+
+  const statsCards = [
+    { label: "Total Wins", value: wins.toString(), icon: Trophy, color: "text-amber-500" },
+    { label: "Games Played", value: gamesPlayed.toString(), icon: Gamepad2, color: "text-primary" },
+    { label: "Win Rate", value: `${winRate}%`, icon: Target, color: "text-emerald-500" },
+    { label: "Current Streak", value: currentStreak.toString(), icon: Flame, color: "text-orange-500" },
+    { label: "Best Streak", value: bestStreak.toString(), icon: Zap, color: "text-purple-500" },
+    { label: "Total Earnings", value: earnings >= 1000 ? `${(earnings / 1000).toFixed(1)}K XTZ` : `${earnings} XTZ`, icon: Star, color: "text-cyan-500" },
+  ]
+
+  // Not connected state
+  if (!isConnected) {
+    return (
+      <main className="flex-1 py-12">
+        <div className="container mx-auto px-6 lg:px-8">
+          <div className="max-w-md mx-auto text-center py-16">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 mx-auto mb-6">
+              <Wallet className="h-8 w-8 text-primary" />
+            </div>
+            <h1 className="text-2xl font-bold text-foreground mb-3">Connect Your Wallet</h1>
+            <p className="text-muted-foreground mb-8">
+              Connect your wallet to view your profile, track your stats, and join competitive games.
+            </p>
+            <ProfileWalletSection />
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <main className="flex-1 py-12">
+        <div className="container mx-auto px-6 lg:px-8">
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <Spinner className="h-8 w-8 text-primary" />
+            <p className="text-muted-foreground">Loading your profile...</p>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  // No profile yet - show registration prompt
+  if (!player) {
+    return (
+      <main className="flex-1 py-12">
+        <div className="container mx-auto px-6 lg:px-8">
+          <div className="max-w-md mx-auto text-center py-16">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 mx-auto mb-6">
+              <Gamepad2 className="h-8 w-8 text-primary" />
+            </div>
+            <h1 className="text-2xl font-bold text-foreground mb-3">Create Your Profile</h1>
+            <p className="text-muted-foreground mb-8">
+              Set up your ChainPlay profile to start playing, earning, and competing on the leaderboard.
+            </p>
+            <Button size="lg" onClick={() => setShowRegistration(true)} className="gap-2">
+              <Star className="h-5 w-5" />
+              Create Profile
+            </Button>
+          </div>
+        </div>
+        
+        <PlayerRegistrationModal
+          open={showRegistration}
+          onOpenChange={setShowRegistration}
+          onRegister={handleRegister}
+        />
+      </main>
+    )
+  }
+
+  // Profile exists - show full profile
+  const rankBadge = wins >= 100 ? "Top 1%" : wins >= 50 ? "Top 5%" : wins >= 20 ? "Top 10%" : "Rising Star"
+  const statusText = currentStreak > 0 
+    ? `On a ${currentStreak} win streak` 
+    : gamesPlayed > 0 
+      ? `${gamesPlayed} games played`
+      : "Ready to play"
+
   return (
     <main className="flex-1 py-12">
       <div className="container mx-auto px-6 lg:px-8">
@@ -114,25 +183,25 @@ export function ProfileContent() {
               {/* Left: Avatar + Info */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
                 <Avatar className="h-20 w-20 lg:h-24 lg:w-24 ring-4 ring-primary/20 shadow-lg">
-                  <AvatarImage src={profileData.avatarUrl} alt={profileData.username} />
+                  <AvatarImage src={player.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${player.wallet_address}`} alt={player.username} />
                   <AvatarFallback className="bg-primary/10 text-primary text-2xl font-bold">
-                    {profileData.username.substring(0, 2).toUpperCase()}
+                    {player.username.substring(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div>
                   <div className="flex items-center gap-3 mb-2">
-                    <h1 className="text-2xl lg:text-3xl font-bold text-foreground">{profileData.username}</h1>
+                    <h1 className="text-2xl lg:text-3xl font-bold text-foreground">{player.username}</h1>
                     <Badge className="bg-primary/10 text-primary border-primary/20 font-semibold">
-                      {profileData.rankBadge}
+                      {rankBadge}
                     </Badge>
                   </div>
                   <div className="flex items-center gap-2 text-muted-foreground mb-2">
                     <Flame className="h-4 w-4 text-orange-500" />
-                    <span className="text-sm font-medium">{profileData.status}</span>
+                    <span className="text-sm font-medium">{statusText}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Gamepad2 className="h-4 w-4" />
-                    <span>Favorite: <span className="text-foreground font-medium">{profileData.favoriteGame}</span></span>
+                    <span>Favorite: <span className="text-foreground font-medium">Pass the Bomb</span></span>
                   </div>
                 </div>
               </div>
@@ -140,18 +209,18 @@ export function ProfileContent() {
               {/* Right: Quick Stats */}
               <div className="flex flex-wrap items-center gap-6 lg:gap-8">
                 <div className="text-center">
-                  <p className="text-2xl lg:text-3xl font-bold text-foreground">{profileData.wins}</p>
+                  <p className="text-2xl lg:text-3xl font-bold text-foreground">{wins}</p>
                   <p className="text-sm text-muted-foreground">Wins</p>
                 </div>
                 <div className="w-px h-10 bg-border hidden sm:block" />
                 <div className="text-center">
-                  <p className="text-2xl lg:text-3xl font-bold text-foreground">{profileData.winRate}%</p>
+                  <p className="text-2xl lg:text-3xl font-bold text-foreground">{winRate}%</p>
                   <p className="text-sm text-muted-foreground">Win Rate</p>
                 </div>
                 <div className="w-px h-10 bg-border hidden sm:block" />
                 <div className="text-center">
                   <p className="text-2xl lg:text-3xl font-bold text-foreground">
-                    {(profileData.totalEarnings / 1000).toFixed(1)}K
+                    {earnings >= 1000 ? `${(earnings / 1000).toFixed(1)}K` : earnings}
                     <span className="text-base font-normal text-muted-foreground ml-1">XTZ</span>
                   </p>
                   <p className="text-sm text-muted-foreground">Earnings</p>
@@ -202,7 +271,7 @@ export function ProfileContent() {
               </Button>
             </div>
             
-            {recentMatches.length > 0 ? (
+            {gamesPlayed > 0 ? (
               <div className="rounded-xl bg-card border border-border overflow-hidden">
                 <div className="divide-y divide-border">
                   {recentMatches.map((match) => (
@@ -256,7 +325,10 @@ export function ProfileContent() {
                   <Gamepad2 className="h-6 w-6 text-muted-foreground" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-1">No games yet</h3>
-                <p className="text-sm text-muted-foreground">Start playing to see your match history</p>
+                <p className="text-sm text-muted-foreground mb-4">Start playing to see your match history</p>
+                <Button asChild>
+                  <Link href="/games">Browse Games</Link>
+                </Button>
               </div>
             )}
           </section>
@@ -275,39 +347,29 @@ export function ProfileContent() {
               </span>
             </div>
             
-            {achievements.some(a => a.unlocked) ? (
-              <div className="grid grid-cols-2 gap-3">
-                {achievements.map((achievement) => (
-                  <div 
-                    key={achievement.id} 
-                    className={`p-4 rounded-xl border transition-all cursor-pointer ${
-                      achievement.unlocked 
-                        ? "bg-card border-border hover:border-primary/20" 
-                        : "bg-muted/30 border-dashed border-border opacity-60 hover:opacity-80"
-                    }`}
-                    onClick={() => handleAchievementClick(achievement)}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className={`flex h-10 w-10 items-center justify-center rounded-xl shrink-0 ${achievement.color}`}>
-                        <achievement.icon className="h-5 w-5" />
-                      </div>
-                      <div className="min-w-0">
-                        <h4 className="font-semibold text-foreground text-sm truncate">{achievement.name}</h4>
-                        <p className="text-xs text-muted-foreground line-clamp-2">{achievement.description}</p>
-                      </div>
+            <div className="grid grid-cols-2 gap-3">
+              {achievements.map((achievement) => (
+                <div 
+                  key={achievement.id} 
+                  className={`p-4 rounded-xl border transition-all cursor-pointer ${
+                    achievement.unlocked 
+                      ? "bg-card border-border hover:border-primary/20" 
+                      : "bg-muted/30 border-dashed border-border opacity-60 hover:opacity-80"
+                  }`}
+                  onClick={() => handleAchievementClick(achievement)}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl shrink-0 ${achievement.color}`}>
+                      <achievement.icon className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="font-semibold text-foreground text-sm truncate">{achievement.name}</h4>
+                      <p className="text-xs text-muted-foreground line-clamp-2">{achievement.description}</p>
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-xl bg-card border border-border p-8 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted mx-auto mb-4">
-                  <Award className="h-6 w-6 text-muted-foreground" />
                 </div>
-                <h3 className="font-semibold text-foreground mb-1">No achievements yet</h3>
-                <p className="text-sm text-muted-foreground">Start playing to unlock achievements</p>
-              </div>
-            )}
+              ))}
+            </div>
           </section>
         </div>
 
@@ -352,6 +414,12 @@ export function ProfileContent() {
           </div>
         </section>
       </div>
+
+      <PlayerRegistrationModal
+        open={showRegistration}
+        onOpenChange={setShowRegistration}
+        onRegister={handleRegister}
+      />
     </main>
   )
 }
