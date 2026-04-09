@@ -1,7 +1,11 @@
+export type WalletType = "evm" | "tezos"
+export type TezosNetwork = "mainnet" | "ghostnet"
+
 export interface Player {
   id: string
   wallet_address: string
-  wallet_chain: string | null
+  wallet_type: WalletType
+  wallet_network: string | null
   username: string
   avatar_url: string | null
   created_at: string
@@ -26,7 +30,8 @@ export interface PlayerWithStats extends Player {
 
 export interface CreatePlayerInput {
   wallet_address: string
-  wallet_chain?: string
+  wallet_type: WalletType
+  wallet_network?: string
   username: string
   avatar_url?: string
 }

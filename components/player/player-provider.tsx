@@ -1,10 +1,11 @@
 "use client"
 
-import { createContext, useContext, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import useSWR from "swr"
 import { useAccount } from "wagmi"
-import type { PlayerWithStats, CreatePlayerInput } from "@/lib/types/player"
+import type { PlayerWithStats, CreatePlayerInput, WalletType } from "@/lib/types/player"
 import { useWalletReady } from "@/components/wallet/wallet-provider"
+import { useTezosWallet } from "@/hooks/use-tezos-wallet"
 
 const fetcher = async (url: string) => {
   const res = await fetch(url)
@@ -16,10 +17,11 @@ interface PlayerContextValue {
   player: PlayerWithStats | null
   isLoading: boolean
   error: Error | null
-  createOrUpdatePlayer: (input: Omit<CreatePlayerInput, "wallet_address">) => Promise<{ player: PlayerWithStats }>
+  createOrUpdatePlayer: (input: Omit<CreatePlayerInput, "wallet_address" | "wallet_type">) => Promise<{ player: PlayerWithStats }>
   refetch: () => Promise<unknown>
   isConnected: boolean
   address: string | undefined
+  walletType: WalletType | null
 }
 
 const PlayerContext = createContext<PlayerContextValue>({
@@ -30,15 +32,29 @@ const PlayerContext = createContext<PlayerContextValue>({
   refetch: () => Promise.resolve(undefined),
   isConnected: false,
   address: undefined,
+  walletType: null,
 })
 
 // Inner component that uses wagmi hooks - only rendered when wallet is ready
 function PlayerProviderInner({ children }: { children: ReactNode }) {
-  const { address, isConnected } = useAccount()
+  // EVM wallet state
+  const { address: evmAddress, isConnected: evmConnected } = useAccount()
+  
+  // Tezos wallet state
+  const { 
+    address: tezosAddress, 
+    isConnected: tezosConnected,
+    network: tezosNetwork 
+  } = useTezosWallet()
+
+  // Determine active wallet
+  const isConnected = evmConnected || tezosConnected
+  const walletType: WalletType | null = evmConnected ? "evm" : tezosConnected ? "tezos" : null
+  const address = evmConnected ? evmAddress : tezosConnected ? tezosAddress : undefined
 
   const { data, error, isLoading, mutate } = useSWR<{ player: PlayerWithStats | null }>(
-    isConnected && address 
-      ? `/api/player?wallet=${address}` 
+    isConnected && address && walletType
+      ? `/api/player?wallet=${address}&wallet_type=${walletType}` 
       : null,
     fetcher,
     {
@@ -47,14 +63,16 @@ function PlayerProviderInner({ children }: { children: ReactNode }) {
     }
   )
 
-  const createOrUpdatePlayer = async (input: Omit<CreatePlayerInput, "wallet_address">) => {
-    if (!address) throw new Error("Wallet not connected")
+  const createOrUpdatePlayer = async (input: Omit<CreatePlayerInput, "wallet_address" | "wallet_type">) => {
+    if (!address || !walletType) throw new Error("Wallet not connected")
 
     const response = await fetch("/api/player", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         wallet_address: address,
+        wallet_type: walletType,
+        wallet_network: walletType === "tezos" ? tezosNetwork : undefined,
         ...input,
       }),
     })
@@ -82,6 +100,7 @@ function PlayerProviderInner({ children }: { children: ReactNode }) {
         refetch: mutate,
         isConnected,
         address,
+        walletType,
       }}
     >
       {children}
@@ -105,6 +124,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           refetch: () => Promise.resolve(undefined),
           isConnected: false,
           address: undefined,
+          walletType: null,
         }}
       >
         {children}
