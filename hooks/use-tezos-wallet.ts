@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback } from "react"
 import type { TezosNetwork } from "@/lib/types/player"
 
-// BeaconWallet types (we'll dynamically import the actual library)
-interface BeaconWalletType {
-  requestPermissions: (options: { network: { type: string } }) => Promise<{ address: string }>
-  getActiveAccount: () => Promise<{ address: string } | undefined>
+// DAppClient types (we'll dynamically import the actual library)
+interface DAppClientType {
+  requestPermissions: (options?: { network?: { type: string } }) => Promise<{ address: string; network: { type: string } }>
+  getActiveAccount: () => Promise<{ address: string; network: { type: string } } | undefined>
   disconnect: () => Promise<void>
   clearActiveAccount: () => Promise<void>
+  destroy: () => Promise<void>
 }
 
 interface UseTezosWalletReturn {
@@ -22,38 +23,35 @@ interface UseTezosWalletReturn {
   switchNetwork: (network: TezosNetwork) => void
 }
 
-// Cache the wallet instance
-let walletInstance: BeaconWalletType | null = null
-let beaconModule: typeof import("@airgap/beacon-sdk") | null = null
+// Cache the client instance
+let clientInstance: DAppClientType | null = null
 
-async function getBeaconWallet(network: TezosNetwork): Promise<BeaconWalletType> {
-  if (walletInstance) return walletInstance
+async function getDAppClient(network: TezosNetwork): Promise<DAppClientType> {
+  if (clientInstance) return clientInstance
   
-  // Dynamically import beacon-sdk (it's large and not needed until user connects)
-  if (!beaconModule) {
-    beaconModule = await import("@airgap/beacon-sdk")
+  // Dynamically import beacon-dapp (it's large and not needed until user connects)
+  const beaconDapp = await import("@airgap/beacon-dapp")
+  
+  // DAppClient is the main export for dApp integrations
+  const DAppClient = beaconDapp.DAppClient || (beaconDapp as { default?: { DAppClient?: unknown } }).default?.DAppClient
+  
+  if (!DAppClient || typeof DAppClient !== "function") {
+    throw new Error("DAppClient not found in @airgap/beacon-dapp")
   }
   
-  // BeaconWallet might be exported differently depending on the package version
-  // Try multiple access patterns
-  const BeaconWalletClass = (beaconModule as Record<string, unknown>).BeaconWallet 
-    || (beaconModule as { default?: { BeaconWallet?: unknown } }).default?.BeaconWallet
-    || beaconModule
-  
-  if (!BeaconWalletClass || typeof BeaconWalletClass !== "function") {
-    throw new Error("BeaconWallet not found in @airgap/beacon-sdk. The package may have changed its export structure.")
-  }
+  // Get network type enum
+  const NetworkType = beaconDapp.NetworkType || { MAINNET: "mainnet", GHOSTNET: "ghostnet" }
   
   const networkType = network === "mainnet" 
-    ? beaconModule.NetworkType?.MAINNET || "mainnet"
-    : beaconModule.NetworkType?.GHOSTNET || "ghostnet"
+    ? NetworkType.MAINNET 
+    : NetworkType.GHOSTNET
   
-  walletInstance = new (BeaconWalletClass as new (config: { name: string; preferredNetwork: string }) => BeaconWalletType)({
+  clientInstance = new (DAppClient as new (config: { name: string; preferredNetwork: string }) => DAppClientType)({
     name: "ChainPlay",
-    preferredNetwork: networkType as string,
+    preferredNetwork: networkType,
   })
   
-  return walletInstance
+  return clientInstance
 }
 
 export function useTezosWallet(): UseTezosWalletReturn {
@@ -66,29 +64,41 @@ export function useTezosWallet(): UseTezosWalletReturn {
   useEffect(() => {
     const checkExistingConnection = async () => {
       try {
-        const wallet = await getBeaconWallet(network)
-        const activeAccount = await wallet.getActiveAccount()
+        // Check localStorage first to avoid unnecessary SDK loading
+        const wasConnected = localStorage.getItem("tezos_connected")
+        if (!wasConnected) return
+        
+        const savedNetwork = localStorage.getItem("tezos_network") as TezosNetwork | null
+        if (savedNetwork) setNetwork(savedNetwork)
+        
+        const client = await getDAppClient(savedNetwork || network)
+        const activeAccount = await client.getActiveAccount()
         if (activeAccount) {
           setAddress(activeAccount.address)
         }
       } catch {
         // No existing connection, that's fine
+        localStorage.removeItem("tezos_connected")
       }
     }
     
     checkExistingConnection()
-  }, [network])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const connect = useCallback(async (): Promise<string | null> => {
     setIsConnecting(true)
     setError(null)
     
     try {
-      const wallet = await getBeaconWallet(network)
+      const client = await getDAppClient(network)
+      
+      // Get network type for permissions request
+      const beaconDapp = await import("@airgap/beacon-dapp")
+      const NetworkType = beaconDapp.NetworkType || { MAINNET: "mainnet", GHOSTNET: "ghostnet" }
+      const networkType = network === "mainnet" ? NetworkType.MAINNET : NetworkType.GHOSTNET
       
       // Request permissions (this will open the wallet selector)
-      const networkType = network === "mainnet" ? "mainnet" : "ghostnet"
-      const permissions = await wallet.requestPermissions({
+      const permissions = await client.requestPermissions({
         network: { type: networkType },
       })
       
@@ -112,13 +122,14 @@ export function useTezosWallet(): UseTezosWalletReturn {
 
   const disconnect = useCallback(async () => {
     try {
-      if (walletInstance) {
-        await walletInstance.clearActiveAccount()
-        await walletInstance.disconnect()
+      if (clientInstance) {
+        await clientInstance.clearActiveAccount()
+        // Destroy the client to clean up resources
+        await clientInstance.destroy()
       }
       
       setAddress(null)
-      walletInstance = null
+      clientInstance = null
       
       // Clear localStorage
       localStorage.removeItem("tezos_connected")
@@ -133,11 +144,11 @@ export function useTezosWallet(): UseTezosWalletReturn {
     if (address) {
       disconnect().then(() => {
         setNetwork(newNetwork)
-        walletInstance = null // Force new wallet instance with new network
+        clientInstance = null // Force new client instance with new network
       })
     } else {
       setNetwork(newNetwork)
-      walletInstance = null
+      clientInstance = null
     }
   }, [address, disconnect])
 
