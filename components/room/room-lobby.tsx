@@ -112,7 +112,7 @@ export function RoomLobby({
               ) : room.player_count >= room.max_players ? (
                 "Room Full"
               ) : !player ? (
-                "Connect Wallet to Join"
+                "Connect Tezos Wallet to Join"
               ) : (
                 <>
                   <Users className="h-5 w-5 mr-2" />

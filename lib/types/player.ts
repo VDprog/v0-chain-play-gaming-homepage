@@ -1,4 +1,5 @@
-export type WalletType = "evm" | "tezos"
+// Tezos is the only supported wallet type
+export type WalletType = "tezos"
 export type TezosNetwork = "mainnet" | "ghostnet"
 
 export interface Player {

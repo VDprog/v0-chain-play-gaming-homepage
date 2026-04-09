@@ -27,7 +27,7 @@ interface CreateRoomModalProps {
 
 export function CreateRoomModal({ open, onOpenChange, gameSlug, gameTitle }: CreateRoomModalProps) {
   const router = useRouter()
-  const { player, isConnected, isLoading: playerLoading, walletType, address } = usePlayer()
+  const { player, isConnected, isLoading: playerLoading } = usePlayer()
   const { createRoom } = useRooms(gameSlug)
   
   const [name, setName] = useState("")
@@ -37,23 +37,8 @@ export function CreateRoomModal({ open, onOpenChange, gameSlug, gameTitle }: Cre
   const [totalRounds, setTotalRounds] = useState<RoundCount>(1)
   const [isCreating, setIsCreating] = useState(false)
 
-  // Debug logging for room creation state
-  console.log("[v0] CreateRoomModal state:", {
-    open,
-    isConnected,
-    playerLoading,
-    walletType,
-    address,
-    playerId: player?.id,
-    playerUsername: player?.username,
-    canCreate: isConnected && !playerLoading && !!player
-  })
-
   const handleCreate = async () => {
-    console.log("[v0] handleCreate called:", { player, isCreating })
-    
     if (!player) {
-      console.error("[v0] Cannot create room: player is null")
       toast.error("Player not ready", {
         description: "Your profile is still loading. Please wait a moment and try again.",
       })
@@ -61,15 +46,6 @@ export function CreateRoomModal({ open, onOpenChange, gameSlug, gameTitle }: Cre
     }
 
     setIsCreating(true)
-    console.log("[v0] Creating room with payload:", {
-      game_slug: gameSlug,
-      name: name.trim() || undefined,
-      max_players: maxPlayers,
-      is_private: isPrivate,
-      stakes,
-      settings: { totalRounds },
-      created_by: player.id,
-    })
     
     try {
       const room = await createRoom({
@@ -82,7 +58,6 @@ export function CreateRoomModal({ open, onOpenChange, gameSlug, gameTitle }: Cre
         created_by: player.id,
       })
 
-      console.log("[v0] Room created successfully:", room)
       toast.success("Room created!", {
         description: `${room.name || `Room #${room.id.slice(0, 4).toUpperCase()}`} is ready`,
       })
@@ -90,7 +65,6 @@ export function CreateRoomModal({ open, onOpenChange, gameSlug, gameTitle }: Cre
       onOpenChange(false)
       router.push(`/room/${room.id}`)
     } catch (error) {
-      console.error("[v0] Room creation failed:", error)
       toast.error("Failed to create room", {
         description: error instanceof Error ? error.message : "Please try again",
       })
@@ -114,14 +88,14 @@ export function CreateRoomModal({ open, onOpenChange, gameSlug, gameTitle }: Cre
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Connect Wallet</DialogTitle>
+            <DialogTitle>Connect Tezos Wallet</DialogTitle>
             <DialogDescription>
-              Connect your wallet to create and join rooms.
+              Connect your Tezos wallet to create and join rooms.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-center py-6">
             <p className="text-muted-foreground text-center">
-              Please connect your wallet using the button in the header.
+              Please connect your Tezos wallet using the button in the header.
             </p>
           </div>
         </DialogContent>

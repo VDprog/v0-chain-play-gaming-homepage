@@ -1,3 +1,9 @@
+/**
+ * @deprecated EVM wallet support has been removed.
+ * ChainPlay now uses Tezos-only via Beacon SDK.
+ * This file is kept for reference but is not actively used.
+ */
+
 import { http, createConfig } from "wagmi"
 import { mainnet, sepolia, polygon } from "wagmi/chains"
 import { injected, walletConnect, coinbaseWallet } from "wagmi/connectors"

@@ -69,7 +69,7 @@ export function RoomContent({ initialRoom, game, isSpectator = false }: RoomCont
 
   const handleJoin = async () => {
     if (!player) {
-      toast.error("Please create a profile first")
+      toast.error("Please connect your Tezos wallet first")
       return
     }
     

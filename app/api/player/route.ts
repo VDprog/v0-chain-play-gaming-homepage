@@ -2,22 +2,22 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import type { CreatePlayerInput } from "@/lib/types/player"
 
-// GET /api/player?wallet=0x123...&wallet_type=evm
+// GET /api/player?wallet=tz1...&wallet_type=tezos
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const walletAddress = searchParams.get("wallet")
-  const walletType = searchParams.get("wallet_type") || "evm"
+  const walletType = searchParams.get("wallet_type") || "tezos"
 
   if (!walletAddress) {
     return NextResponse.json({ error: "Wallet address required" }, { status: 400 })
   }
 
+  // Validate Tezos address format
+  if (!walletAddress.startsWith("tz")) {
+    return NextResponse.json({ error: "Invalid Tezos address format" }, { status: 400 })
+  }
+
   const supabase = await createClient()
-  
-  // For Tezos, don't lowercase (tz1 addresses are case-sensitive)
-  const normalizedAddress = walletType === "tezos" 
-    ? walletAddress 
-    : walletAddress.toLowerCase()
 
   const { data: player, error } = await supabase
     .from("players")
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       *,
       stats:player_stats(*)
     `)
-    .eq("wallet_address", normalizedAddress)
+    .eq("wallet_address", walletAddress)
     .eq("wallet_type", walletType)
     .single()
 
@@ -50,26 +50,34 @@ export async function POST(request: NextRequest) {
   try {
     const body: CreatePlayerInput = await request.json()
 
-    if (!body.wallet_address || !body.username || !body.wallet_type) {
+    if (!body.wallet_address || !body.username) {
       return NextResponse.json(
-        { error: "Wallet address, wallet_type, and username are required" },
+        { error: "Wallet address and username are required" },
+        { status: 400 }
+      )
+    }
+
+    // Validate Tezos address format
+    if (!body.wallet_address.startsWith("tz")) {
+      return NextResponse.json(
+        { error: "Invalid Tezos address format. Address must start with 'tz'" },
         { status: 400 }
       )
     }
 
     const supabase = await createClient()
     
-    // For Tezos, don't lowercase (tz1 addresses are case-sensitive)
-    const walletAddress = body.wallet_type === "tezos" 
-      ? body.wallet_address 
-      : body.wallet_address.toLowerCase()
+    // Tezos addresses are case-sensitive, don't lowercase
+    const walletAddress = body.wallet_address
+    const walletType = body.wallet_type || "tezos"
+    const walletNetwork = body.wallet_network || "ghostnet"
 
-    // Check if player exists with this wallet + type combination
+    // Check if player exists with this wallet
     const { data: existingPlayer } = await supabase
       .from("players")
       .select("id")
       .eq("wallet_address", walletAddress)
-      .eq("wallet_type", body.wallet_type)
+      .eq("wallet_type", walletType)
       .single()
 
     if (existingPlayer) {
@@ -78,11 +86,11 @@ export async function POST(request: NextRequest) {
         .from("players")
         .update({
           username: body.username,
-          wallet_network: body.wallet_network,
+          wallet_network: walletNetwork,
           avatar_url: body.avatar_url,
         })
         .eq("wallet_address", walletAddress)
-        .eq("wallet_type", body.wallet_type)
+        .eq("wallet_type", walletType)
         .select(`
           *,
           stats:player_stats(*)
@@ -107,8 +115,8 @@ export async function POST(request: NextRequest) {
       .from("players")
       .insert({
         wallet_address: walletAddress,
-        wallet_type: body.wallet_type,
-        wallet_network: body.wallet_network,
+        wallet_type: walletType,
+        wallet_network: walletNetwork,
         username: body.username,
         avatar_url: body.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${walletAddress}`,
       })

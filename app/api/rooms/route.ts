@@ -53,20 +53,16 @@ export async function POST(request: NextRequest) {
   
   try {
     const body: CreateRoomInput = await request.json()
-    
-    console.log("[v0] POST /api/rooms - Request body:", body)
 
     if (!body.game_slug) {
-      console.error("[v0] Room creation failed: game_slug is required")
       return NextResponse.json({ error: "game_slug is required" }, { status: 400 })
     }
 
     if (!body.created_by) {
-      console.error("[v0] Room creation failed: created_by is required")
       return NextResponse.json({ error: "created_by (player_id) is required" }, { status: 400 })
     }
     
-    // Verify the player exists
+    // Verify the player exists (must be a Tezos player)
     const { data: player, error: playerCheckError } = await supabase
       .from("players")
       .select("id, username, wallet_type")
@@ -74,14 +70,8 @@ export async function POST(request: NextRequest) {
       .single()
     
     if (playerCheckError || !player) {
-      console.error("[v0] Room creation failed: player not found:", { 
-        created_by: body.created_by, 
-        error: playerCheckError 
-      })
-      return NextResponse.json({ error: "Player not found. Please reconnect your wallet." }, { status: 404 })
+      return NextResponse.json({ error: "Player not found. Please reconnect your Tezos wallet." }, { status: 404 })
     }
-    
-    console.log("[v0] Player verified:", player)
 
     // Create the room
     const { data: room, error: roomError } = await supabase

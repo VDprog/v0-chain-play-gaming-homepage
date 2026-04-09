@@ -15,13 +15,13 @@ interface TriviaRoyaleGameProps {
 
 const sampleQuestions = [
   {
-    question: "What is the native token of the Ethereum network?",
-    options: ["ETH", "BTC", "SOL", "MATIC"],
+    question: "What is the native token of the Tezos network?",
+    options: ["XTZ", "BTC", "SOL", "MATIC"],
     correct: 0,
   },
   {
-    question: "Which consensus mechanism does Ethereum 2.0 use?",
-    options: ["Proof of Work", "Proof of Stake", "Delegated Proof of Stake", "Proof of Authority"],
+    question: "Which consensus mechanism does Tezos use?",
+    options: ["Proof of Work", "Liquid Proof of Stake", "Delegated Proof of Stake", "Proof of Authority"],
     correct: 1,
   },
   {
