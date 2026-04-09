@@ -34,14 +34,24 @@ async function getBeaconWallet(network: TezosNetwork): Promise<BeaconWalletType>
     beaconModule = await import("@airgap/beacon-sdk")
   }
   
-  const { BeaconWallet } = beaconModule
+  // BeaconWallet might be exported differently depending on the package version
+  // Try multiple access patterns
+  const BeaconWalletClass = (beaconModule as Record<string, unknown>).BeaconWallet 
+    || (beaconModule as { default?: { BeaconWallet?: unknown } }).default?.BeaconWallet
+    || beaconModule
   
-  walletInstance = new BeaconWallet({
+  if (!BeaconWalletClass || typeof BeaconWalletClass !== "function") {
+    throw new Error("BeaconWallet not found in @airgap/beacon-sdk. The package may have changed its export structure.")
+  }
+  
+  const networkType = network === "mainnet" 
+    ? beaconModule.NetworkType?.MAINNET || "mainnet"
+    : beaconModule.NetworkType?.GHOSTNET || "ghostnet"
+  
+  walletInstance = new (BeaconWalletClass as new (config: { name: string; preferredNetwork: string }) => BeaconWalletType)({
     name: "ChainPlay",
-    preferredNetwork: network === "mainnet" 
-      ? beaconModule.NetworkType.MAINNET 
-      : beaconModule.NetworkType.GHOSTNET,
-  }) as unknown as BeaconWalletType
+    preferredNetwork: networkType as string,
+  })
   
   return walletInstance
 }
