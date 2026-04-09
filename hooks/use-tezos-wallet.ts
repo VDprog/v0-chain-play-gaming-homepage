@@ -48,20 +48,24 @@ async function getDAppClient(network: TezosNetwork): Promise<DAppClientType> {
     throw new Error("DAppClient not found in @airgap/beacon-dapp")
   }
   
-  // Get network type enum
-  const NetworkType = beaconDapp.NetworkType || { MAINNET: "mainnet", GHOSTNET: "ghostnet" }
-  
+  // Get network type enum - use string values if enum not available
+  const NetworkType = beaconDapp.NetworkType
   const networkType = network === "mainnet" 
-    ? NetworkType.MAINNET 
-    : NetworkType.GHOSTNET
+    ? (NetworkType?.MAINNET ?? "mainnet")
+    : (NetworkType?.GHOSTNET ?? "ghostnet")
   
-  // Network must be provided during instantiation (not in requestPermissions)
+  // Create client with proper configuration
+  // Disable analytics/metrics to avoid IndexedDB errors in some environments
   clientInstance = new (DAppClient as new (config: { 
     name: string
-    network: { type: string }
+    preferredNetwork: string
+    disableDefaultEvents?: boolean
+    enableMetrics?: boolean
   }) => DAppClientType)({
     name: "ChainPlay",
-    network: { type: networkType },
+    preferredNetwork: networkType,
+    disableDefaultEvents: false,
+    enableMetrics: false, // Disable metrics to avoid IndexedDB errors
   })
   
   return clientInstance
@@ -105,7 +109,8 @@ export function useTezosWallet(): UseTezosWalletReturn {
     try {
       const client = await getDAppClient(network)
       
-      // Request permissions (network is already set during client instantiation)
+      // Request permissions - network is set during client instantiation (preferredNetwork)
+      // The newer Beacon SDK versions don't accept network in requestPermissions
       const permissions = await client.requestPermissions()
       
       const connectedAddress = permissions.address
