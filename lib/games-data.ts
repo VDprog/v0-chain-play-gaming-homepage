@@ -1,5 +1,7 @@
 export type IconName = "bomb" | "handshake" | "circle-dot" | "clock" | "timer" | "crown"
 
+export type GameCategory = "1v1" | "Multiplayer" | "Quiz" | "Social" | "Reaction" | "Final"
+
 export interface GameData {
   slug: string
   title: string
@@ -7,6 +9,7 @@ export interface GameData {
   longDescription: string
   iconName: IconName
   tags: string[]
+  categories: GameCategory[]
   playersOnline: number
   activeRooms: number
   avgMatchTime: string
@@ -14,6 +17,9 @@ export interface GameData {
   badge?: string
   badgeType?: "trending" | "live" | "new" | "popular"
 }
+
+// All available categories for filtering
+export const allCategories: GameCategory[] = ["1v1", "Multiplayer", "Quiz", "Social", "Reaction", "Final"]
 
 export const gamesData: GameData[] = [
   {
@@ -23,8 +29,9 @@ export const gamesData: GameData[] = [
     longDescription: "The ultimate trust game. Two players face off - will you split the prize fairly, or risk it all to steal? But beware, if both steal, everyone loses.",
     iconName: "handshake",
     tags: ["1v1", "Strategy", "Mind Games", "Trending"],
-    playersOnline: 1243,
-    activeRooms: 31,
+    categories: ["1v1", "Final"],
+    playersOnline: 0,
+    activeRooms: 0,
     avgMatchTime: "1:45",
     bestStreak: 8,
     badge: "Trending",
@@ -37,8 +44,9 @@ export const gamesData: GameData[] = [
     longDescription: "A fast-paced multiplayer game where players must quickly pass a virtual bomb before it explodes. React fast, choose your target wisely, and be the last one standing to claim victory.",
     iconName: "bomb",
     tags: ["Multiplayer", "Realtime", "Fast Game", "Popular"],
-    playersOnline: 892,
-    activeRooms: 24,
+    categories: ["Multiplayer", "Reaction"],
+    playersOnline: 0,
+    activeRooms: 0,
     avgMatchTime: "2:30",
     bestStreak: 12,
     badge: "Live",
@@ -50,9 +58,10 @@ export const gamesData: GameData[] = [
     description: "Find the invisible button before anyone else. Speed wins.",
     longDescription: "A deceptively simple game that tests your reflexes and observation skills. The button is hidden somewhere on screen - find it first to win!",
     iconName: "circle-dot",
-    tags: ["Multiplayer", "Fast Game", "Reflexes"],
-    playersOnline: 567,
-    activeRooms: 15,
+    tags: ["1v1", "Fast Game", "Reflexes"],
+    categories: ["1v1", "Reaction"],
+    playersOnline: 0,
+    activeRooms: 0,
     avgMatchTime: "0:45",
     bestStreak: 15,
   },
@@ -62,9 +71,10 @@ export const gamesData: GameData[] = [
     description: "Answer faster than opponents in rapid-fire trivia battles.",
     longDescription: "Test your knowledge and speed in this intense trivia showdown. Questions come fast, and only the quickest correct answer wins points.",
     iconName: "clock",
-    tags: ["Multiplayer", "Trivia", "Educational", "Popular"],
-    playersOnline: 2341,
-    activeRooms: 42,
+    tags: ["1v1", "Trivia", "Educational", "Popular"],
+    categories: ["1v1", "Quiz"],
+    playersOnline: 0,
+    activeRooms: 0,
     avgMatchTime: "5:00",
     bestStreak: 20,
     badge: "Popular",
@@ -76,9 +86,10 @@ export const gamesData: GameData[] = [
     description: "Stop the timer at exactly the right moment. Precision wins.",
     longDescription: "Can you stop the timer at precisely the target time? A test of timing, patience, and nerve. The closest to the target wins.",
     iconName: "timer",
-    tags: ["Solo", "Precision", "Skill"],
-    playersOnline: 456,
-    activeRooms: 12,
+    tags: ["1v1", "Precision", "Skill"],
+    categories: ["1v1", "Reaction"],
+    playersOnline: 0,
+    activeRooms: 0,
     avgMatchTime: "1:00",
     bestStreak: 5,
   },
@@ -89,8 +100,9 @@ export const gamesData: GameData[] = [
     longDescription: "A high-stakes elimination quiz where one wrong answer means you're out. Answer correctly to survive each round until only one player remains.",
     iconName: "crown",
     tags: ["Multiplayer", "Elimination", "Trivia", "New"],
-    playersOnline: 1087,
-    activeRooms: 28,
+    categories: ["Multiplayer", "Quiz"],
+    playersOnline: 0,
+    activeRooms: 0,
     avgMatchTime: "4:00",
     bestStreak: 7,
     badge: "New",

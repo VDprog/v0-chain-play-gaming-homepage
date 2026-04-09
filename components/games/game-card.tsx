@@ -53,15 +53,24 @@ export function GameCard({ game }: GameCardProps) {
         </div>
         
         <div className="flex items-center justify-between mt-6 pt-5 border-t border-border">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            {/* Players online */}
             <div className="flex items-center gap-1.5">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
+              {game.playersOnline > 0 && (
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+              )}
               <Users className="h-3.5 w-3.5" />
+              <span className="font-medium tabular-nums">{game.playersOnline}</span>
             </div>
-            <span className="font-medium">{new Intl.NumberFormat("en-US").format(game.playersOnline)}</span>
+            {/* Active rooms */}
+            {game.activeRooms > 0 && (
+              <div className="flex items-center gap-1.5 text-xs">
+                <span className="text-muted-foreground">{game.activeRooms} room{game.activeRooms !== 1 ? "s" : ""}</span>
+              </div>
+            )}
           </div>
           <Button size="sm" className="h-9 px-4 text-xs font-semibold gap-1.5 opacity-90 group-hover:opacity-100 transition-all duration-200">
             Play

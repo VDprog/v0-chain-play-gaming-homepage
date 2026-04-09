@@ -47,8 +47,16 @@ export function useLiveRooms(options: UseLiveRoomsOptions = {}) {
     }
   )
 
-  // Sort rooms based on option
-  const sortedRooms = data?.rooms ? sortRooms(data.rooms, sort) : []
+  // Filter out invalid/orphaned rooms and sort
+  const validRooms = data?.rooms?.filter(room => {
+    // Exclude rooms without players (orphaned)
+    if (room.player_count === 0) return false
+    // Exclude rooms with invalid status
+    if (!["waiting", "starting", "live"].includes(room.status)) return false
+    return true
+  }) || []
+  
+  const sortedRooms = sortRooms(validRooms, sort)
 
   // Calculate stats
   const stats = {
