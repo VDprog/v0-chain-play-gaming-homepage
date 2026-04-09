@@ -13,15 +13,18 @@ interface RoomCardProps {
   onSpectate?: (roomId: string) => void
 }
 
-const statusConfig = {
+const statusConfig: Record<string, { color: string; bg: string; label: string }> = {
   waiting: { color: "text-primary", bg: "bg-primary", label: "WAITING" },
   starting: { color: "text-amber-600", bg: "bg-amber-500", label: "STARTING" },
   live: { color: "text-emerald-600", bg: "bg-emerald-500", label: "LIVE" },
   finished: { color: "text-muted-foreground", bg: "bg-muted-foreground", label: "FINISHED" },
+  expired: { color: "text-red-600", bg: "bg-red-500", label: "EXPIRED" },
 }
 
+const defaultConfig = { color: "text-muted-foreground", bg: "bg-muted-foreground", label: "UNKNOWN" }
+
 export function RoomCard({ room, gameTitle, onJoin, onSpectate }: RoomCardProps) {
-  const config = statusConfig[room.status]
+  const config = statusConfig[room.status] || defaultConfig
   const isFull = room.player_count >= room.max_players
   const canJoin = room.status === "waiting" && !isFull
   const canSpectate = room.status === "live"
