@@ -26,11 +26,20 @@ interface UseTezosWalletReturn {
 // Cache the client instance
 let clientInstance: DAppClientType | null = null
 
+// Cache the beacon module
+let beaconModule: Awaited<typeof import("@airgap/beacon-dapp")> | null = null
+
+async function getBeaconModule() {
+  if (!beaconModule) {
+    beaconModule = await import("@airgap/beacon-dapp")
+  }
+  return beaconModule
+}
+
 async function getDAppClient(network: TezosNetwork): Promise<DAppClientType> {
   if (clientInstance) return clientInstance
   
-  // Dynamically import beacon-dapp (it's large and not needed until user connects)
-  const beaconDapp = await import("@airgap/beacon-dapp")
+  const beaconDapp = await getBeaconModule()
   
   // DAppClient is the main export for dApp integrations
   const DAppClient = beaconDapp.DAppClient || (beaconDapp as { default?: { DAppClient?: unknown } }).default?.DAppClient
@@ -46,9 +55,13 @@ async function getDAppClient(network: TezosNetwork): Promise<DAppClientType> {
     ? NetworkType.MAINNET 
     : NetworkType.GHOSTNET
   
-  clientInstance = new (DAppClient as new (config: { name: string; preferredNetwork: string }) => DAppClientType)({
+  // Network must be provided during instantiation (not in requestPermissions)
+  clientInstance = new (DAppClient as new (config: { 
+    name: string
+    network: { type: string }
+  }) => DAppClientType)({
     name: "ChainPlay",
-    preferredNetwork: networkType,
+    network: { type: networkType },
   })
   
   return clientInstance
@@ -92,15 +105,8 @@ export function useTezosWallet(): UseTezosWalletReturn {
     try {
       const client = await getDAppClient(network)
       
-      // Get network type for permissions request
-      const beaconDapp = await import("@airgap/beacon-dapp")
-      const NetworkType = beaconDapp.NetworkType || { MAINNET: "mainnet", GHOSTNET: "ghostnet" }
-      const networkType = network === "mainnet" ? NetworkType.MAINNET : NetworkType.GHOSTNET
-      
-      // Request permissions (this will open the wallet selector)
-      const permissions = await client.requestPermissions({
-        network: { type: networkType },
-      })
+      // Request permissions (network is already set during client instantiation)
+      const permissions = await client.requestPermissions()
       
       const connectedAddress = permissions.address
       setAddress(connectedAddress)
