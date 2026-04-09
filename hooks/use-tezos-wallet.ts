@@ -118,9 +118,9 @@ export function useTezosWallet(): UseTezosWalletReturn {
       clientRef.current = globalClient
 
       // Request permissions - this opens the wallet selector
-      const permissions = await globalClient.requestPermissions({
-        network: { type: networkType },
-      })
+      // Note: network is set via preferredNetwork in DAppClient constructor
+      // Newer Beacon SDK versions don't accept network in requestPermissions
+      const permissions = await globalClient.requestPermissions()
 
       const connectedAddress = permissions.address
       setAddress(connectedAddress)
