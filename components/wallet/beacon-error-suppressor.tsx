@@ -20,23 +20,33 @@ if (typeof window !== "undefined") {
     window.addEventListener("unhandledrejection", (event: PromiseRejectionEvent) => {
       // Handle various error formats from Beacon SDK
       const reason = event.reason
-      let message = ""
+      
+      // Build a comprehensive string to check against
+      let errorText = ""
       
       if (reason instanceof Error) {
-        message = reason.message
+        errorText = `${reason.message} ${reason.stack || ""}`
       } else if (typeof reason === "string") {
-        message = reason
-      } else if (reason && typeof reason === "object" && "message" in reason) {
-        message = String(reason.message)
+        errorText = reason
+      } else if (reason && typeof reason === "object") {
+        // Try to extract any useful text from the object
+        errorText = JSON.stringify(reason)
+        if ("message" in reason) errorText += ` ${String(reason.message)}`
+        if ("stack" in reason) errorText += ` ${String(reason.stack)}`
       }
+      
+      // Convert to lowercase for case-insensitive matching
+      const lowerText = errorText.toLowerCase()
       
       // Check if this is the Beacon SDK metrics error or other known Beacon errors
       // Also catch IndexedDB-related errors from Beacon's storage layer
       if (
-        message.includes("metrics not found") ||
-        message.includes("IndexedDB") ||
-        message.includes("beacon") ||
-        message.includes("Beacon")
+        lowerText.includes("metrics not found") ||
+        lowerText.includes("metrics") ||
+        lowerText.includes("indexeddb") ||
+        lowerText.includes("beacon") ||
+        lowerText.includes("@airgap") ||
+        lowerText.includes("dappclient")
       ) {
         event.preventDefault()
         event.stopPropagation()
