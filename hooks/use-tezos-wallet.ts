@@ -1,9 +1,31 @@
 "use client"
 
+// IMPORTANT: Register error handler BEFORE any other imports that might trigger Beacon SDK
+// This catches the "metrics not found" IndexedDB error from Beacon SDK analytics
+if (typeof window !== "undefined") {
+  // Use both approaches for maximum coverage
+  const suppressBeaconError = (event: PromiseRejectionEvent) => {
+    const reason = event.reason
+    const text = String(reason?.message || reason || "").toLowerCase()
+    const stack = String(reason?.stack || "").toLowerCase()
+    
+    if (
+      text.includes("metrics") ||
+      stack.includes("beacon") ||
+      stack.includes("@airgap") ||
+      stack.includes("indexeddb")
+    ) {
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      return false
+    }
+  }
+  
+  window.addEventListener("unhandledrejection", suppressBeaconError, true)
+}
+
 import { useState, useEffect, useCallback, useRef } from "react"
 import type { TezosNetwork } from "@/lib/types/player"
-
-// Note: Beacon SDK metrics errors are suppressed globally via BeaconErrorSuppressor component
 
 interface UseTezosWalletReturn {
   address: string | null
