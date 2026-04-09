@@ -9,32 +9,32 @@ interface GameStatsProps {
   bestStreak: number
 }
 
-export function GameStats({ playersOnline, activeRooms, avgMatchTime, bestStreak }: GameStatsProps) {
+export function GameStats({ playersOnline = 0, activeRooms = 0, avgMatchTime = "0:00", bestStreak = 0 }: GameStatsProps) {
   const stats = [
     {
       label: "Players Online",
-      value: new Intl.NumberFormat("en-US").format(playersOnline),
+      value: new Intl.NumberFormat("en-US").format(playersOnline ?? 0),
       icon: Users,
       color: "text-emerald-500",
       bgColor: "bg-emerald-500/10",
     },
     {
       label: "Active Rooms",
-      value: activeRooms.toString(),
+      value: (activeRooms ?? 0).toString(),
       icon: DoorOpen,
       color: "text-primary",
       bgColor: "bg-primary/10",
     },
     {
       label: "Avg Match Time",
-      value: avgMatchTime,
+      value: avgMatchTime ?? "0:00",
       icon: Clock,
       color: "text-amber-500",
       bgColor: "bg-amber-500/10",
     },
     {
       label: "Best Streak Today",
-      value: bestStreak.toString(),
+      value: (bestStreak ?? 0).toString(),
       icon: Flame,
       color: "text-rose-500",
       bgColor: "bg-rose-500/10",
