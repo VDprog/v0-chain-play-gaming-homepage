@@ -1,29 +1,5 @@
 "use client"
 
-// IMPORTANT: Register error handler BEFORE any other imports that might trigger Beacon SDK
-// This catches the "metrics not found" IndexedDB error from Beacon SDK analytics
-if (typeof window !== "undefined") {
-  // Use both approaches for maximum coverage
-  const suppressBeaconError = (event: PromiseRejectionEvent) => {
-    const reason = event.reason
-    const text = String(reason?.message || reason || "").toLowerCase()
-    const stack = String(reason?.stack || "").toLowerCase()
-    
-    if (
-      text.includes("metrics") ||
-      stack.includes("beacon") ||
-      stack.includes("@airgap") ||
-      stack.includes("indexeddb")
-    ) {
-      event.preventDefault()
-      event.stopImmediatePropagation()
-      return false
-    }
-  }
-  
-  window.addEventListener("unhandledrejection", suppressBeaconError, true)
-}
-
 import { useState, useEffect, useCallback, useRef } from "react"
 import type { TezosNetwork } from "@/lib/types/player"
 
@@ -62,7 +38,6 @@ export function useTezosWallet(): UseTezosWalletReturn {
 
     const init = async () => {
       try {
-        // Check localStorage first
         const wasConnected = localStorage.getItem("tezos_connected")
         const savedNetwork = localStorage.getItem("tezos_network") as TezosNetwork | null
         
@@ -74,15 +49,11 @@ export function useTezosWallet(): UseTezosWalletReturn {
 
         const beacon = await getBeaconDapp()
         
-        // Reuse global client if it exists
         if (!globalClient) {
-          // Simple initialization per official Beacon SDK docs
-          // Network is selected by the user in the wallet
           globalClient = new beacon.DAppClient({
             name: "ChainPlay",
           })
 
-          // Subscribe to account changes (mandatory since v4.2.0)
           globalClient.subscribeToEvent(beacon.BeaconEvent.ACTIVE_ACCOUNT_SET, (account) => {
             if (mounted && account) {
               setAddress(account.address)
@@ -92,13 +63,12 @@ export function useTezosWallet(): UseTezosWalletReturn {
 
         clientRef.current = globalClient
 
-        // Check for existing session
         const activeAccount = await globalClient.getActiveAccount()
         if (activeAccount && mounted) {
           setAddress(activeAccount.address)
         }
       } catch (err) {
-        console.error("[v0] Tezos init error:", err)
+        // Non-critical init error - user can reconnect manually
         localStorage.removeItem("tezos_connected")
       }
     }
@@ -108,7 +78,7 @@ export function useTezosWallet(): UseTezosWalletReturn {
     return () => {
       mounted = false
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   const connect = useCallback(async (): Promise<string | null> => {
     setIsConnecting(true)
@@ -117,14 +87,11 @@ export function useTezosWallet(): UseTezosWalletReturn {
     try {
       const beacon = await getBeaconDapp()
 
-      // Create client if needed
       if (!globalClient) {
-        // Simple initialization per official Beacon SDK docs
         globalClient = new beacon.DAppClient({
           name: "ChainPlay",
         })
 
-        // Subscribe to account changes (mandatory since v4.2.0)
         globalClient.subscribeToEvent(beacon.BeaconEvent.ACTIVE_ACCOUNT_SET, (account) => {
           if (account) {
             setAddress(account.address)
@@ -134,26 +101,49 @@ export function useTezosWallet(): UseTezosWalletReturn {
 
       clientRef.current = globalClient
 
-      // Request permissions - this opens the wallet selector
-      // User selects their wallet and network in the Beacon UI
-      const permissions = await globalClient.requestPermissions()
+      // Request permissions - wrap to handle internal SDK errors
+      let connectedAddress: string | null = null
+      
+      try {
+        const permissions = await globalClient.requestPermissions()
+        connectedAddress = permissions.address
+      } catch (permError) {
+        // The Beacon SDK may throw internal errors (like metrics IndexedDB errors)
+        // but still successfully connect. Check if we have an active account.
+        const errorObj = permError as { errorType?: string; message?: string }
+        
+        // If user explicitly cancelled, don't try fallback
+        if (errorObj.errorType === "ABORTED_ERROR") {
+          setError("Connection cancelled")
+          return null
+        }
+        
+        // Check if connection actually succeeded despite the error
+        const activeAccount = await globalClient.getActiveAccount()
+        if (activeAccount) {
+          connectedAddress = activeAccount.address
+        } else {
+          // Real connection failure
+          throw permError
+        }
+      }
 
-      const connectedAddress = permissions.address
-      setAddress(connectedAddress)
+      if (connectedAddress) {
+        setAddress(connectedAddress)
+        localStorage.setItem("tezos_connected", "true")
+        localStorage.setItem("tezos_network", network)
+        return connectedAddress
+      }
 
-      localStorage.setItem("tezos_connected", "true")
-      localStorage.setItem("tezos_network", network)
-
-      return connectedAddress
+      return null
     } catch (err: unknown) {
-      // Handle Beacon SDK error objects
       const errorObj = err as { errorType?: string; message?: string }
-      let errorMessage = "Failed to connect Tezos wallet"
+      let errorMessage = "Failed to connect wallet"
       
       if (errorObj.errorType === "ABORTED_ERROR") {
         errorMessage = "Connection was cancelled"
       } else if (errorObj.errorType === "NETWORK_NOT_SUPPORTED_ERROR") {
-        errorMessage = "Network not supported by wallet"
+        errorMessage = "Network not supported"
       } else if (errorObj.errorType === "PARAMETERS_INVALID_ERROR") {
         errorMessage = "Invalid connection parameters"
       } else if (err instanceof Error) {
@@ -161,7 +151,6 @@ export function useTezosWallet(): UseTezosWalletReturn {
       }
       
       setError(errorMessage)
-      console.error("[v0] Tezos wallet connection error:", err)
       return null
     } finally {
       setIsConnecting(false)
@@ -173,21 +162,19 @@ export function useTezosWallet(): UseTezosWalletReturn {
       if (globalClient) {
         await globalClient.clearActiveAccount()
       }
-      
-      setAddress(null)
-      localStorage.removeItem("tezos_connected")
-      localStorage.removeItem("tezos_network")
-    } catch (err) {
-      console.error("[v0] Tezos wallet disconnect error:", err)
+    } catch {
+      // Ignore disconnect errors
     }
+    
+    setAddress(null)
+    localStorage.removeItem("tezos_connected")
+    localStorage.removeItem("tezos_network")
   }, [])
 
   const switchNetwork = useCallback((newNetwork: TezosNetwork) => {
     if (address) {
-      // Need to disconnect and reconnect with new network
       disconnect().then(() => {
         setNetwork(newNetwork)
-        // Destroy client so it recreates with new network
         if (globalClient) {
           globalClient.destroy().catch(() => {})
           globalClient = null
