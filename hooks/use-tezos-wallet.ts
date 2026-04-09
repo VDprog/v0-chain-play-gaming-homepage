@@ -6,18 +6,14 @@ import type { TezosNetwork } from "@/lib/types/player"
 // Suppress Beacon SDK IndexedDB metrics errors in sandboxed environments
 // This is a known issue where the SDK's analytics fails in iframes/sandboxes
 if (typeof window !== "undefined") {
-  const originalOnUnhandledRejection = window.onunhandledrejection
-  window.onunhandledrejection = (event) => {
+  window.addEventListener("unhandledrejection", (event) => {
     // Check if this is the Beacon SDK metrics error
-    if (event.reason?.message?.includes("metrics not found")) {
+    const reason = event.reason as { message?: string } | undefined
+    if (reason?.message?.includes("metrics not found")) {
       event.preventDefault()
-      return
+      event.stopPropagation()
     }
-    // Call original handler if it exists
-    if (originalOnUnhandledRejection) {
-      return originalOnUnhandledRejection.call(window, event)
-    }
-  }
+  }, true) // Use capture phase to intercept before other handlers
 }
 
 interface UseTezosWalletReturn {
