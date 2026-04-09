@@ -30,8 +30,14 @@ if (typeof window !== "undefined") {
         message = String(reason.message)
       }
       
-      // Check if this is the Beacon SDK metrics error
-      if (message.includes("metrics not found")) {
+      // Check if this is the Beacon SDK metrics error or other known Beacon errors
+      // Also catch IndexedDB-related errors from Beacon's storage layer
+      if (
+        message.includes("metrics not found") ||
+        message.includes("IndexedDB") ||
+        message.includes("beacon") ||
+        message.includes("Beacon")
+      ) {
         event.preventDefault()
         event.stopPropagation()
         // Silently ignore - this is expected in sandboxed environments
