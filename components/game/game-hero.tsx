@@ -3,30 +3,37 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ChevronRight, Play, Users, Bomb, Handshake, CircleDot, Clock, Timer, Crown, Gamepad2 } from "lucide-react"
+import { ChevronRight, Play, Users, Bomb, Handshake, CircleDot, Clock, Timer, Crown, Gamepad2, Brain, Eye, Zap, Link as LinkIcon, Bitcoin, Search } from "lucide-react"
 import { toast } from "sonner"
+import type { IconName, GameCategory } from "@/lib/games-data"
 
-const iconMap = {
+const iconMap: Record<IconName, React.ComponentType<{ className?: string }>> = {
   bomb: Bomb,
   handshake: Handshake,
   "circle-dot": CircleDot,
   clock: Clock,
   timer: Timer,
   crown: Crown,
-  gamepad: Gamepad2,
-} as const
-
-type IconName = keyof typeof iconMap
+  users: Users,
+  brain: Brain,
+  eye: Eye,
+  zap: Zap,
+  link: LinkIcon,
+  bitcoin: Bitcoin,
+  search: Search,
+}
 
 interface GameHeroProps {
   title: string
   description: string
   iconName: IconName
-  tags: string[]
+  categories: GameCategory[]
+  minPlayers: number
+  maxPlayers: number
   slug: string
 }
 
-export function GameHero({ title, description, iconName, tags, slug }: GameHeroProps) {
+export function GameHero({ title, description, iconName, categories, minPlayers, maxPlayers, slug }: GameHeroProps) {
   const Icon = iconMap[iconName] || Gamepad2
   
   return (
@@ -53,15 +60,21 @@ export function GameHero({ title, description, iconName, tags, slug }: GameHeroP
                 <Icon className="h-8 w-8" />
               </div>
               <div className="flex flex-wrap gap-2">
-                {tags.map((tag) => (
+                {categories.map((category) => (
                   <Badge 
-                    key={tag} 
+                    key={category} 
                     variant="secondary" 
                     className="px-3 py-1 text-xs font-medium bg-primary/10 text-primary border-0"
                   >
-                    {tag}
+                    {category}
                   </Badge>
                 ))}
+                <Badge 
+                  variant="outline" 
+                  className="px-3 py-1 text-xs font-medium"
+                >
+                  {minPlayers === maxPlayers ? `${minPlayers} Players` : `${minPlayers}-${maxPlayers} Players`}
+                </Badge>
               </div>
             </div>
 

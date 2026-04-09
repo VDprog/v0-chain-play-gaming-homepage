@@ -2,19 +2,30 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, Bomb, HelpCircle, Handshake, CircleDot, Timer, Crown, LayoutGrid, Radio } from "lucide-react"
+import { ChevronDown, Bomb, HelpCircle, Handshake, CircleDot, Timer, Crown, LayoutGrid, Radio, Users, Brain, Eye, Zap, Link as LinkIcon, Bitcoin, Search } from "lucide-react"
 import { useLiveContext } from "./live-context"
-import { gamesData } from "@/lib/games-data"
+import { getActiveGames } from "@/lib/games-data"
 import type { SortOption } from "@/hooks/use-live-rooms"
+import type { IconName } from "@/lib/games-data"
 
-const gameIcons: Record<string, typeof Bomb> = {
-  "pass-the-bomb": Bomb,
-  "split-or-steal": Handshake,
-  "speed-quiz": HelpCircle,
-  "hidden-button": CircleDot,
-  "timer-challenge": Timer,
-  "last-survivor-quiz": Crown,
+const iconMap: Record<IconName, typeof Bomb> = {
+  bomb: Bomb,
+  handshake: Handshake,
+  "circle-dot": CircleDot,
+  clock: HelpCircle,
+  timer: Timer,
+  crown: Crown,
+  users: Users,
+  brain: Brain,
+  eye: Eye,
+  zap: Zap,
+  link: LinkIcon,
+  bitcoin: Bitcoin,
+  search: Search,
 }
+
+// Only show active games in the filter
+const activeGames = getActiveGames()
 
 const statusFilters = [
   { label: "All", value: null },
@@ -51,16 +62,16 @@ export function LiveFilters() {
               All Games
             </button>
             
-            {/* Individual game filters */}
-            {gamesData.map((game) => {
-              const Icon = gameIcons[game.slug] || Radio
-              const isActive = gameFilter === game.slug
+            {/* Individual game filters - only active games */}
+            {activeGames.map((game) => {
+              const Icon = iconMap[game.iconName] || Radio
+              const isActiveFilter = gameFilter === game.slug
               return (
                 <button
                   key={game.slug}
                   onClick={() => setGameFilter(game.slug)}
                   className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200 ${
-                    isActive
+                    isActiveFilter
                       ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
                       : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
                   }`}

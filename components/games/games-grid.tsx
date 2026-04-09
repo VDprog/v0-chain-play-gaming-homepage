@@ -57,8 +57,11 @@ export function GamesGrid({ games }: GamesGridProps) {
     ? gamesWithStats.filter(game => game.categories.includes(selectedCategory))
     : gamesWithStats
 
-  // Sort games: those with activity first, then alphabetically
+  // Sort games: active first, then by activity, then coming soon at the end
   const sortedGames = [...filteredGames].sort((a, b) => {
+    // Coming soon games go to the end
+    if (a.status === "coming_soon" && b.status !== "coming_soon") return 1
+    if (b.status === "coming_soon" && a.status !== "coming_soon") return -1
     // Games with live rooms first
     if (a.activeRooms > 0 && b.activeRooms === 0) return -1
     if (b.activeRooms > 0 && a.activeRooms === 0) return 1
