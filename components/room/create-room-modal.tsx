@@ -27,7 +27,7 @@ interface CreateRoomModalProps {
 
 export function CreateRoomModal({ open, onOpenChange, gameSlug, gameTitle }: CreateRoomModalProps) {
   const router = useRouter()
-  const { player, isConnected } = usePlayer()
+  const { player, isConnected, isLoading: playerLoading, walletType, address } = usePlayer()
   const { createRoom } = useRooms(gameSlug)
   
   const [name, setName] = useState("")
@@ -37,15 +37,40 @@ export function CreateRoomModal({ open, onOpenChange, gameSlug, gameTitle }: Cre
   const [totalRounds, setTotalRounds] = useState<RoundCount>(1)
   const [isCreating, setIsCreating] = useState(false)
 
+  // Debug logging for room creation state
+  console.log("[v0] CreateRoomModal state:", {
+    open,
+    isConnected,
+    playerLoading,
+    walletType,
+    address,
+    playerId: player?.id,
+    playerUsername: player?.username,
+    canCreate: isConnected && !playerLoading && !!player
+  })
+
   const handleCreate = async () => {
+    console.log("[v0] handleCreate called:", { player, isCreating })
+    
     if (!player) {
-      toast.error("Please register first", {
-        description: "You need to create a profile to host a room",
+      console.error("[v0] Cannot create room: player is null")
+      toast.error("Player not ready", {
+        description: "Your profile is still loading. Please wait a moment and try again.",
       })
       return
     }
 
     setIsCreating(true)
+    console.log("[v0] Creating room with payload:", {
+      game_slug: gameSlug,
+      name: name.trim() || undefined,
+      max_players: maxPlayers,
+      is_private: isPrivate,
+      stakes,
+      settings: { totalRounds },
+      created_by: player.id,
+    })
+    
     try {
       const room = await createRoom({
         game_slug: gameSlug,
@@ -57,6 +82,7 @@ export function CreateRoomModal({ open, onOpenChange, gameSlug, gameTitle }: Cre
         created_by: player.id,
       })
 
+      console.log("[v0] Room created successfully:", room)
       toast.success("Room created!", {
         description: `${room.name || `Room #${room.id.slice(0, 4).toUpperCase()}`} is ready`,
       })
@@ -64,6 +90,7 @@ export function CreateRoomModal({ open, onOpenChange, gameSlug, gameTitle }: Cre
       onOpenChange(false)
       router.push(`/room/${room.id}`)
     } catch (error) {
+      console.error("[v0] Room creation failed:", error)
       toast.error("Failed to create room", {
         description: error instanceof Error ? error.message : "Please try again",
       })
@@ -71,6 +98,16 @@ export function CreateRoomModal({ open, onOpenChange, gameSlug, gameTitle }: Cre
       setIsCreating(false)
     }
   }
+  
+  // Determine button disabled state and reason
+  const isButtonDisabled = isCreating || playerLoading || !player
+  const disabledReason = isCreating 
+    ? "Creating..." 
+    : playerLoading 
+      ? "Loading profile..." 
+      : !player 
+        ? "Player profile not found" 
+        : null
 
   if (!isConnected) {
     return (
@@ -209,32 +246,46 @@ export function CreateRoomModal({ open, onOpenChange, gameSlug, gameTitle }: Cre
           </div>
         </div>
 
-        <div className="flex gap-3">
-          <Button 
-            variant="outline" 
-            onClick={() => onOpenChange(false)} 
-            className="flex-1"
-            disabled={isCreating}
-          >
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleCreate} 
-            className="flex-1 gap-2"
-            disabled={isCreating || !player}
-          >
-            {isCreating ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Creating...
-              </>
-            ) : (
-              <>
-                <Plus className="h-4 w-4" />
-                Create Room
-              </>
-            )}
-          </Button>
+        <div className="flex flex-col gap-3">
+          {/* Show reason if button is disabled */}
+          {disabledReason && !isCreating && (
+            <p className="text-sm text-amber-600 text-center">
+              {disabledReason}
+            </p>
+          )}
+          
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => onOpenChange(false)} 
+              className="flex-1"
+              disabled={isCreating}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreate} 
+              className="flex-1 gap-2"
+              disabled={isButtonDisabled}
+            >
+              {isCreating ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : playerLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4" />
+                  Create Room
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
