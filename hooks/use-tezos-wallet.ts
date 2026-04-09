@@ -3,18 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import type { TezosNetwork } from "@/lib/types/player"
 
-// Suppress Beacon SDK IndexedDB metrics errors in sandboxed environments
-// This is a known issue where the SDK's analytics fails in iframes/sandboxes
-if (typeof window !== "undefined") {
-  window.addEventListener("unhandledrejection", (event) => {
-    // Check if this is the Beacon SDK metrics error
-    const reason = event.reason as { message?: string } | undefined
-    if (reason?.message?.includes("metrics not found")) {
-      event.preventDefault()
-      event.stopPropagation()
-    }
-  }, true) // Use capture phase to intercept before other handlers
-}
+// Note: Beacon SDK metrics errors are suppressed globally via BeaconErrorSuppressor component
 
 interface UseTezosWalletReturn {
   address: string | null

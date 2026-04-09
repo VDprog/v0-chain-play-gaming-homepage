@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { WalletProvider } from '@/components/wallet/wallet-provider'
 import { PlayerProvider } from '@/components/player/player-provider'
+import { BeaconErrorSuppressor } from '@/components/wallet/beacon-error-suppressor'
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
@@ -40,6 +41,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="font-sans antialiased">
+        <BeaconErrorSuppressor />
         <WalletProvider>
           <PlayerProvider>
             {children}
