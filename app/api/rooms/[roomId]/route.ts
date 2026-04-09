@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { ROOM_EXPIRATION_MS } from "@/lib/types/room"
 
 // GET /api/rooms/[roomId] - Get a specific room
 export async function GET(
@@ -17,6 +18,23 @@ export async function GET(
 
   if (error || !data) {
     return NextResponse.json({ error: "Room not found" }, { status: 404 })
+  }
+
+  // Check if the room should be expired (waiting rooms older than 15 minutes)
+  if (data.status === "waiting") {
+    const roomAge = Date.now() - new Date(data.created_at).getTime()
+    if (roomAge > ROOM_EXPIRATION_MS) {
+      // Mark as expired
+      await supabase
+        .from("rooms")
+        .update({ status: "expired" })
+        .eq("id", roomId)
+      
+      return NextResponse.json({ 
+        room: { ...data, status: "expired" },
+        expired: true
+      })
+    }
   }
 
   return NextResponse.json({ room: data })

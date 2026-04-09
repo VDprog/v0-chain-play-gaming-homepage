@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import type { CreateRoomInput } from "@/lib/types/room"
+import { ROOM_EXPIRATION_MS } from "@/lib/types/room"
 
 // GET /api/rooms - List rooms (optionally filtered by game_slug)
 export async function GET(request: NextRequest) {
@@ -10,6 +11,14 @@ export async function GET(request: NextRequest) {
   const gameSlug = searchParams.get("game")
   const status = searchParams.get("status")
   const limit = parseInt(searchParams.get("limit") || "20")
+
+  // First, expire any old waiting rooms (15 minutes without starting)
+  const expirationTime = new Date(Date.now() - ROOM_EXPIRATION_MS).toISOString()
+  await supabase
+    .from("rooms")
+    .update({ status: "expired" })
+    .eq("status", "waiting")
+    .lt("created_at", expirationTime)
 
   let query = supabase
     .from("rooms_with_players")
@@ -24,8 +33,8 @@ export async function GET(request: NextRequest) {
   if (status) {
     query = query.eq("status", status)
   } else {
-    // By default, only show active rooms (not finished)
-    query = query.neq("status", "finished")
+    // By default, only show active rooms (not finished or expired)
+    query = query.not("status", "in", '("finished","expired")')
   }
 
   const { data, error } = await query

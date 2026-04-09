@@ -88,6 +88,24 @@ export function useRoom(roomId: string | null) {
     return true
   }
 
+  const startGame = async (playerId: string) => {
+    if (!roomId) throw new Error("Room ID required")
+    
+    const response = await fetch(`/api/rooms/${roomId}/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ player_id: playerId }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || "Failed to start game")
+    }
+
+    mutate()
+    return true
+  }
+
   return {
     room: data?.room || null,
     isLoading,
@@ -96,6 +114,7 @@ export function useRoom(roomId: string | null) {
     leaveRoom,
     setReady,
     updateStatus,
+    startGame,
     refetch: mutate,
   }
 }

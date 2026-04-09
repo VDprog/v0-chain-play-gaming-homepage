@@ -32,17 +32,18 @@ interface RoomContentProps {
   isSpectator?: boolean
 }
 
-const statusLabels = {
+const statusLabels: Record<string, string> = {
   waiting: "Waiting for Players",
   starting: "Starting Soon",
   live: "Game in Progress",
   finished: "Game Ended",
+  expired: "Room Expired",
 }
 
 export function RoomContent({ initialRoom, game, isSpectator = false }: RoomContentProps) {
   const router = useRouter()
   const { player, isConnected } = usePlayer()
-  const { room, isLoading, joinRoom, leaveRoom, setReady, updateStatus } = useRoom(initialRoom.id)
+  const { room, isLoading, joinRoom, leaveRoom, setReady, startGame } = useRoom(initialRoom.id)
   
   const [isJoining, setIsJoining] = useState(false)
   const [isLeaving, setIsLeaving] = useState(false)
@@ -123,11 +124,15 @@ export function RoomContent({ initialRoom, game, isSpectator = false }: RoomCont
   }
 
   const handleStartGame = async () => {
+    if (!player) return
+    
     try {
-      await updateStatus("live")
+      await startGame(player.id)
       toast.success("Game starting!")
-    } catch {
-      toast.error("Failed to start game")
+    } catch (error) {
+      toast.error("Failed to start game", {
+        description: error instanceof Error ? error.message : "Please try again",
+      })
     }
   }
 
@@ -137,10 +142,9 @@ export function RoomContent({ initialRoom, game, isSpectator = false }: RoomCont
     toast.success("Room link copied!")
   }
 
-  // Check if all players are ready
-  const allPlayersReady = currentRoom.players
-    .filter(p => p.role !== "spectator")
-    .every(p => p.is_ready)
+  // Check if all non-host players are ready (host doesn't need to ready up)
+  const nonHostPlayers = currentRoom.players.filter(p => p.role !== "spectator" && p.role !== "host")
+  const allPlayersReady = nonHostPlayers.length === 0 || nonHostPlayers.every(p => p.is_ready)
   const canStart = isHost && allPlayersReady && currentRoom.player_count >= 2
 
   return (
@@ -219,6 +223,17 @@ export function RoomContent({ initialRoom, game, isSpectator = false }: RoomCont
           isInRoom={isInRoom}
           isSpectator={currentPlayerInRoom?.role === "spectator"}
         />
+      ) : currentRoom.status === "expired" ? (
+        // Expired state
+        <div className="container mx-auto px-6 lg:px-8 py-16 text-center">
+          <h2 className="text-2xl font-bold mb-4">Room Expired</h2>
+          <p className="text-muted-foreground mb-6">This room has expired due to inactivity.</p>
+          <Button asChild>
+            <Link href={`/games/${currentRoom.game_slug}`}>
+              Find Another Room
+            </Link>
+          </Button>
+        </div>
       ) : (
         // Finished state
         <div className="container mx-auto px-6 lg:px-8 py-16 text-center">

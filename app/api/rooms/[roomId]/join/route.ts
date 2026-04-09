@@ -120,14 +120,71 @@ export async function DELETE(
     return NextResponse.json({ error: "player_id is required" }, { status: 400 })
   }
 
+  // Get the room and player info first
+  const { data: room } = await supabase
+    .from("rooms_with_players")
+    .select("*")
+    .eq("id", roomId)
+    .single()
+
+  if (!room) {
+    return NextResponse.json({ error: "Room not found" }, { status: 404 })
+  }
+
+  // Find the leaving player
+  const players = room.players as Array<{ id: string; role: string; joined_at: string }>
+  const leavingPlayer = players.find(p => p.id === playerId)
+  
+  if (!leavingPlayer) {
+    return NextResponse.json({ error: "Player not in room" }, { status: 400 })
+  }
+
+  // Mark the player as left
   const { error } = await supabase
     .from("room_players")
-    .update({ left_at: new Date().toISOString() })
+    .update({ 
+      left_at: new Date().toISOString(),
+      status: "left"
+    })
     .eq("room_id", roomId)
     .eq("player_id", playerId)
 
   if (error) {
     return NextResponse.json({ error: "Failed to leave room" }, { status: 500 })
+  }
+
+  // If the leaving player was the host, transfer host to next player
+  if (leavingPlayer.role === "host") {
+    // Get remaining players (excluding the leaving player and spectators)
+    const remainingPlayers = players
+      .filter(p => p.id !== playerId && p.role !== "spectator")
+      .sort((a, b) => new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime())
+
+    if (remainingPlayers.length > 0) {
+      // Transfer host to the earliest joined player
+      const newHost = remainingPlayers[0]
+      
+      await supabase
+        .from("room_players")
+        .update({ role: "host" })
+        .eq("room_id", roomId)
+        .eq("player_id", newHost.id)
+    } else {
+      // No players left, mark room as expired
+      await supabase
+        .from("rooms")
+        .update({ status: "expired" })
+        .eq("id", roomId)
+    }
+  }
+
+  // Check if room should be expired (no active players left)
+  const activePlayersRemaining = players.filter(p => p.id !== playerId && p.role !== "spectator").length
+  if (activePlayersRemaining === 0 && room.status === "waiting") {
+    await supabase
+      .from("rooms")
+      .update({ status: "expired" })
+      .eq("id", roomId)
   }
 
   return NextResponse.json({ success: true })
