@@ -2,48 +2,102 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, Bomb, HelpCircle, Swords, Zap, Clock } from "lucide-react"
+import { ChevronDown, Bomb, HelpCircle, Handshake, CircleDot, Timer, Crown, LayoutGrid, Radio, Users, Brain, Eye, Zap, Link as LinkIcon, Bitcoin, Search } from "lucide-react"
+import { useLiveContext } from "./live-context"
+import { getActiveGames } from "@/lib/games-data"
+import type { SortOption } from "@/hooks/use-live-rooms"
+import type { IconName } from "@/lib/games-data"
 
-const filters = [
-  { label: "All", value: "all", icon: null },
-  { label: "Pass the Bomb", value: "bomb", icon: Bomb },
-  { label: "Quiz", value: "quiz", icon: HelpCircle },
-  { label: "1v1", value: "1v1", icon: Swords },
-  { label: "Fast Games", value: "fast", icon: Zap },
-  { label: "Starting Soon", value: "starting", icon: Clock },
+const iconMap: Record<IconName, typeof Bomb> = {
+  bomb: Bomb,
+  handshake: Handshake,
+  "circle-dot": CircleDot,
+  clock: HelpCircle,
+  timer: Timer,
+  crown: Crown,
+  users: Users,
+  brain: Brain,
+  eye: Eye,
+  zap: Zap,
+  link: LinkIcon,
+  bitcoin: Bitcoin,
+  search: Search,
+}
+
+// Only show active games in the filter
+const activeGames = getActiveGames()
+
+const statusFilters = [
+  { label: "All", value: null },
+  { label: "Live", value: "live" },
+  { label: "Waiting", value: "waiting" },
 ]
 
-const sortOptions = [
+const sortOptions: { label: string; value: SortOption }[] = [
   { label: "Most Active", value: "active" },
   { label: "Newest", value: "newest" },
-  { label: "Almost Full", value: "full" },
+  { label: "Almost Full", value: "players" },
 ]
 
 export function LiveFilters() {
-  const [activeFilter, setActiveFilter] = useState("all")
-  const [sortBy, setSortBy] = useState("active")
+  const { gameFilter, statusFilter, sort, setGameFilter, setStatusFilter, setSort } = useLiveContext()
   const [showSort, setShowSort] = useState(false)
 
   return (
     <section className="py-4 border-b border-border bg-card/50 sticky top-16 z-40 backdrop-blur-sm">
       <div className="container mx-auto px-6 lg:px-8">
         <div className="flex items-center justify-between gap-4">
-          {/* Filter pills */}
+          {/* Game filter pills */}
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
-            {filters.map((filter) => {
-              const isActive = activeFilter === filter.value
-              const Icon = filter.icon
+            {/* All games filter */}
+            <button
+              onClick={() => setGameFilter(null)}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200 ${
+                gameFilter === null
+                  ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+              }`}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              All Games
+            </button>
+            
+            {/* Individual game filters - only active games */}
+            {activeGames.map((game) => {
+              const Icon = iconMap[game.iconName] || Radio
+              const isActiveFilter = gameFilter === game.slug
               return (
                 <button
-                  key={filter.value}
-                  onClick={() => setActiveFilter(filter.value)}
+                  key={game.slug}
+                  onClick={() => setGameFilter(game.slug)}
                   className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200 ${
-                    isActive
+                    isActiveFilter
                       ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
                       : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
                   }`}
                 >
-                  {Icon && <Icon className="h-3.5 w-3.5" />}
+                  <Icon className="h-3.5 w-3.5" />
+                  {game.title}
+                </button>
+              )
+            })}
+
+            {/* Divider */}
+            <div className="h-6 w-px bg-border mx-1" />
+
+            {/* Status filters */}
+            {statusFilters.map((filter) => {
+              const isActive = statusFilter === filter.value
+              return (
+                <button
+                  key={filter.value || "all-status"}
+                  onClick={() => setStatusFilter(filter.value)}
+                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200 ${
+                    isActive
+                      ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/30"
+                      : "bg-muted/50 text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                  }`}
+                >
                   {filter.label}
                 </button>
               )
@@ -58,7 +112,7 @@ export function LiveFilters() {
               className="gap-2 font-medium"
               onClick={() => setShowSort(!showSort)}
             >
-              {sortOptions.find(s => s.value === sortBy)?.label}
+              {sortOptions.find(s => s.value === sort)?.label}
               <ChevronDown className={`h-4 w-4 transition-transform ${showSort ? "rotate-180" : ""}`} />
             </Button>
             {showSort && (
@@ -69,11 +123,11 @@ export function LiveFilters() {
                     <button
                       key={option.value}
                       onClick={() => {
-                        setSortBy(option.value)
+                        setSort(option.value)
                         setShowSort(false)
                       }}
                       className={`w-full px-4 py-2 text-left text-sm transition-colors ${
-                        sortBy === option.value
+                        sort === option.value
                           ? "bg-primary/5 text-primary font-medium"
                           : "text-foreground hover:bg-muted"
                       }`}

@@ -9,11 +9,13 @@ import {
   Check, 
   Crown,
   Loader2,
-  Clock
+  Clock,
+  Trophy
 } from "lucide-react"
 import type { RoomWithPlayers, RoomPlayer } from "@/lib/types/room"
 import type { Game } from "@/lib/games-data"
 import type { PlayerWithStats } from "@/lib/types/player"
+import type { RoundCount } from "@/lib/types/match"
 
 interface RoomLobbyProps {
   room: RoomWithPlayers
@@ -56,6 +58,13 @@ export function RoomLobby({
                 {room.player_count} / {room.max_players} Players
               </span>
             </div>
+            {/* Rounds Display */}
+            {(room.settings?.totalRounds as RoundCount) && (room.settings.totalRounds as number) > 1 && (
+              <Badge variant="outline" className="gap-1">
+                <Trophy className="h-3 w-3" />
+                Best of {room.settings.totalRounds as number}
+              </Badge>
+            )}
             {room.stakes > 0 && (
               <Badge variant="secondary" className="text-amber-600">
                 {room.stakes} Stakes

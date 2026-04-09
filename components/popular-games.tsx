@@ -4,9 +4,12 @@ import Link from "next/link"
 import { GameCard } from "@/components/games/game-card"
 import { Button } from "@/components/ui/button"
 import { ArrowRight } from "lucide-react"
-import { gamesData } from "@/lib/games-data"
+import { getActiveGames } from "@/lib/games-data"
 
 export function PopularGames() {
+  // Only show active games, limit to 6 for the homepage
+  const activeGames = getActiveGames().slice(0, 6)
+  
   return (
     <section id="games" className="py-20 bg-background">
       <div className="container mx-auto px-6 lg:px-8">
@@ -24,7 +27,7 @@ export function PopularGames() {
           </Button>
         </div>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {gamesData.map((game) => (
+          {activeGames.map((game) => (
             <GameCard key={game.slug} game={game} />
           ))}
         </div>

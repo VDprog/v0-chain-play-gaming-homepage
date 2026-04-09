@@ -12,10 +12,11 @@ import {
   DialogTitle,
   DialogDescription 
 } from "@/components/ui/dialog"
-import { Plus, Users, Lock, Coins, Loader2 } from "lucide-react"
+import { Plus, Users, Lock, Coins, Loader2, Trophy } from "lucide-react"
 import { toast } from "sonner"
 import { usePlayer } from "@/components/player/player-provider"
 import { useRooms } from "@/hooks/use-room"
+import type { RoundCount } from "@/lib/types/match"
 
 interface CreateRoomModalProps {
   open: boolean
@@ -33,6 +34,7 @@ export function CreateRoomModal({ open, onOpenChange, gameSlug, gameTitle }: Cre
   const [maxPlayers, setMaxPlayers] = useState(4)
   const [isPrivate, setIsPrivate] = useState(false)
   const [stakes, setStakes] = useState(0)
+  const [totalRounds, setTotalRounds] = useState<RoundCount>(1)
   const [isCreating, setIsCreating] = useState(false)
 
   const handleCreate = async () => {
@@ -51,6 +53,7 @@ export function CreateRoomModal({ open, onOpenChange, gameSlug, gameTitle }: Cre
         max_players: maxPlayers,
         is_private: isPrivate,
         stakes,
+        settings: { totalRounds },
         created_by: player.id,
       })
 
@@ -134,6 +137,35 @@ export function CreateRoomModal({ open, onOpenChange, gameSlug, gameTitle }: Cre
                 </Button>
               ))}
             </div>
+          </div>
+
+          {/* Rounds */}
+          <div className="space-y-2">
+            <Label>
+              <div className="flex items-center gap-2">
+                <Trophy className="h-4 w-4" />
+                Best of (Rounds)
+              </div>
+            </Label>
+            <div className="flex gap-2">
+              {([1, 3, 5] as RoundCount[]).map((num) => (
+                <Button
+                  key={num}
+                  type="button"
+                  size="sm"
+                  variant={totalRounds === num ? "default" : "outline"}
+                  onClick={() => setTotalRounds(num)}
+                  className="flex-1"
+                >
+                  {num === 1 ? "Single" : `Best of ${num}`}
+                </Button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {totalRounds === 1 
+                ? "Single round decides the winner" 
+                : `First to ${Math.ceil(totalRounds / 2)} wins takes the match`}
+            </p>
           </div>
 
           {/* Stakes */}

@@ -9,7 +9,7 @@ import { GameRules } from "@/components/game/game-rules"
 import { RecentMatches } from "@/components/game/recent-matches"
 import { PlayerStats } from "@/components/game/player-stats"
 import { RelatedGames } from "@/components/game/related-games"
-import { getGameBySlug, getAllSlugs } from "@/lib/games-data"
+import { getGameBySlug, getAllSlugs, normalizeSlug } from "@/lib/games-data"
 import { createClient } from "@/lib/supabase/server"
 
 export async function generateStaticParams() {
@@ -31,10 +31,16 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 }
 
 export default async function GamePage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params
+  const { slug: rawSlug } = await params
+  const slug = normalizeSlug(rawSlug)
   const game = getGameBySlug(slug)
   
   if (!game) {
+    notFound()
+  }
+
+  // Don't show page for coming soon games
+  if (game.status === "coming_soon") {
     notFound()
   }
 
@@ -56,7 +62,9 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
           title={game.title}
           description={game.description}
           iconName={game.iconName}
-          tags={game.tags}
+          categories={game.categories}
+          minPlayers={game.minPlayers}
+          maxPlayers={game.maxPlayers}
           slug={slug}
         />
         <GameStats 

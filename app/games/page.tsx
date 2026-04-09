@@ -3,6 +3,7 @@ import { ChevronRight } from "lucide-react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { GamesGrid } from "@/components/games/games-grid"
+import { GamesHeroStats } from "@/components/games/games-hero-stats"
 import { gamesData } from "@/lib/games-data"
 
 export const metadata = {
@@ -11,9 +12,6 @@ export const metadata = {
 }
 
 export default function GamesPage() {
-  const totalPlayers = gamesData.reduce((acc, game) => acc + game.playersOnline, 0)
-  const totalRooms = gamesData.reduce((acc, game) => acc + game.activeRooms, 0)
-
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -36,9 +34,7 @@ export default function GamesPage() {
               <h1 className="text-4xl lg:text-5xl font-bold text-foreground mt-3 mb-4 tracking-tight">
                 All Games
               </h1>
-              <p className="text-lg text-muted-foreground leading-relaxed">
-                Choose from {gamesData.length} exciting games. Join {new Intl.NumberFormat("en-US").format(totalPlayers)} players across {totalRooms} active rooms.
-              </p>
+              <GamesHeroStats gameCount={gamesData.length} />
             </div>
           </div>
         </section>
