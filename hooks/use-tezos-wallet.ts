@@ -71,7 +71,7 @@ export function useTezosWallet(): UseTezosWalletReturn {
 
           globalClient = new beacon.DAppClient({
             name: "ChainPlay",
-            preferredNetwork: networkType,
+            network: { type: networkType },
           })
 
           // Subscribe to account changes
@@ -117,7 +117,7 @@ export function useTezosWallet(): UseTezosWalletReturn {
       if (!globalClient) {
         globalClient = new beacon.DAppClient({
           name: "ChainPlay",
-          preferredNetwork: networkType,
+          network: { type: networkType },
         })
 
         // Subscribe to account changes
