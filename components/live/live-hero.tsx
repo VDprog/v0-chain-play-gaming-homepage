@@ -1,11 +1,34 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Radio, Users, Zap, ArrowRight, Gamepad2 } from "lucide-react"
+import { Radio, Users, Zap, Gamepad2 } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
+import { useLiveRooms } from "@/hooks/use-live-rooms"
 
 export function LiveHero() {
+  const router = useRouter()
+  const { rooms, stats } = useLiveRooms({ refreshInterval: 10000 })
+  
+  const handleQuickJoin = async () => {
+    // Find a waiting room with space
+    const availableRoom = rooms.find(r => 
+      r.status === "waiting" && r.player_count < r.max_players
+    )
+    
+    if (availableRoom) {
+      toast.success("Found a room!", {
+        description: `Joining ${availableRoom.name || availableRoom.game_slug}...`,
+      })
+      router.push(`/room/${availableRoom.id}`)
+    } else {
+      toast.info("No available rooms", {
+        description: "Create your own or wait for new rooms.",
+      })
+    }
+  }
+
   return (
     <section className="relative py-16 bg-gradient-to-b from-primary/5 via-background to-background overflow-hidden">
       {/* Subtle background pattern */}
@@ -30,14 +53,14 @@ export function LiveHero() {
             Watch ongoing rounds, join active games, or queue for the next match. The action never stops.
           </p>
           
-          {/* Live stats */}
+          {/* Live stats - real data */}
           <div className="flex items-center justify-center gap-8 mt-8">
             <div className="flex items-center gap-2.5">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
                 <Radio className="h-5 w-5 text-primary" />
               </div>
               <div className="text-left">
-                <p className="text-2xl font-bold text-foreground">24</p>
+                <p className="text-2xl font-bold text-foreground tabular-nums">{stats.totalRooms}</p>
                 <p className="text-xs text-muted-foreground">Active Rooms</p>
               </div>
             </div>
@@ -47,8 +70,8 @@ export function LiveHero() {
                 <Users className="h-5 w-5 text-emerald-600" />
               </div>
               <div className="text-left">
-                <p className="text-2xl font-bold text-foreground">1,247</p>
-                <p className="text-xs text-muted-foreground">Players Online</p>
+                <p className="text-2xl font-bold text-foreground tabular-nums">{stats.totalPlayers}</p>
+                <p className="text-xs text-muted-foreground">Players in Rooms</p>
               </div>
             </div>
           </div>
@@ -58,16 +81,7 @@ export function LiveHero() {
             <Button 
               size="lg" 
               className="gap-2 font-semibold px-6 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/25 transition-all duration-300"
-              onClick={() => {
-                toast.promise(
-                  new Promise((resolve) => setTimeout(resolve, 1500)),
-                  {
-                    loading: "Finding the best available room...",
-                    success: "Found a match! Joining Pass the Bomb Room #301",
-                    error: "No available rooms right now. Try again later.",
-                  }
-                )
-              }}
+              onClick={handleQuickJoin}
             >
               <Zap className="h-4 w-4" />
               Quick Join
