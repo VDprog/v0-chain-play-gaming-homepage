@@ -65,16 +65,13 @@ export function useTezosWallet(): UseTezosWalletReturn {
         
         // Reuse global client if it exists
         if (!globalClient) {
-          const networkType = (savedNetwork || network) === "mainnet" 
-            ? beacon.NetworkType.MAINNET 
-            : beacon.NetworkType.GHOSTNET
-
+          // Simple initialization per official Beacon SDK docs
+          // Network is selected by the user in the wallet
           globalClient = new beacon.DAppClient({
             name: "ChainPlay",
-            network: { type: networkType },
           })
 
-          // Subscribe to account changes
+          // Subscribe to account changes (mandatory since v4.2.0)
           globalClient.subscribeToEvent(beacon.BeaconEvent.ACTIVE_ACCOUNT_SET, (account) => {
             if (mounted && account) {
               setAddress(account.address)
@@ -108,19 +105,15 @@ export function useTezosWallet(): UseTezosWalletReturn {
 
     try {
       const beacon = await getBeaconDapp()
-      
-      const networkType = network === "mainnet" 
-        ? beacon.NetworkType.MAINNET 
-        : beacon.NetworkType.GHOSTNET
 
-      // Create client if needed (or if network changed)
+      // Create client if needed
       if (!globalClient) {
+        // Simple initialization per official Beacon SDK docs
         globalClient = new beacon.DAppClient({
           name: "ChainPlay",
-          network: { type: networkType },
         })
 
-        // Subscribe to account changes
+        // Subscribe to account changes (mandatory since v4.2.0)
         globalClient.subscribeToEvent(beacon.BeaconEvent.ACTIVE_ACCOUNT_SET, (account) => {
           if (account) {
             setAddress(account.address)
@@ -131,8 +124,7 @@ export function useTezosWallet(): UseTezosWalletReturn {
       clientRef.current = globalClient
 
       // Request permissions - this opens the wallet selector
-      // Note: network is set via preferredNetwork in DAppClient constructor
-      // Newer Beacon SDK versions don't accept network in requestPermissions
+      // User selects their wallet and network in the Beacon UI
       const permissions = await globalClient.requestPermissions()
 
       const connectedAddress = permissions.address
