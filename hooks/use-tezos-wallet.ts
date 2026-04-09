@@ -1,16 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import type { TezosNetwork } from "@/lib/types/player"
-
-// DAppClient types (we'll dynamically import the actual library)
-interface DAppClientType {
-  requestPermissions: (options?: { network?: { type: string } }) => Promise<{ address: string; network: { type: string } }>
-  getActiveAccount: () => Promise<{ address: string; network: { type: string } } | undefined>
-  disconnect: () => Promise<void>
-  clearActiveAccount: () => Promise<void>
-  destroy: () => Promise<void>
-}
 
 interface UseTezosWalletReturn {
   address: string | null
@@ -23,106 +14,136 @@ interface UseTezosWalletReturn {
   switchNetwork: (network: TezosNetwork) => void
 }
 
-// Cache the client instance
-let clientInstance: DAppClientType | null = null
+// Global client to prevent multiple instances
+let globalClient: InstanceType<typeof import("@airgap/beacon-dapp").DAppClient> | null = null
+let initPromise: Promise<typeof import("@airgap/beacon-dapp")> | null = null
 
-// Cache the beacon module
-let beaconModule: Awaited<typeof import("@airgap/beacon-dapp")> | null = null
-
-async function getBeaconModule() {
-  if (!beaconModule) {
-    beaconModule = await import("@airgap/beacon-dapp")
+async function getBeaconDapp() {
+  if (!initPromise) {
+    initPromise = import("@airgap/beacon-dapp")
   }
-  return beaconModule
-}
-
-async function getDAppClient(network: TezosNetwork): Promise<DAppClientType> {
-  if (clientInstance) return clientInstance
-  
-  const beaconDapp = await getBeaconModule()
-  
-  // DAppClient is the main export for dApp integrations
-  const DAppClient = beaconDapp.DAppClient || (beaconDapp as { default?: { DAppClient?: unknown } }).default?.DAppClient
-  
-  if (!DAppClient || typeof DAppClient !== "function") {
-    throw new Error("DAppClient not found in @airgap/beacon-dapp")
-  }
-  
-  // Get network type enum - use string values if enum not available
-  const NetworkType = beaconDapp.NetworkType
-  const networkType = network === "mainnet" 
-    ? (NetworkType?.MAINNET ?? "mainnet")
-    : (NetworkType?.GHOSTNET ?? "ghostnet")
-  
-  // Create client with proper configuration
-  // Disable analytics/metrics to avoid IndexedDB errors in some environments
-  clientInstance = new (DAppClient as new (config: { 
-    name: string
-    preferredNetwork: string
-    disableDefaultEvents?: boolean
-    enableMetrics?: boolean
-  }) => DAppClientType)({
-    name: "ChainPlay",
-    preferredNetwork: networkType,
-    disableDefaultEvents: false,
-    enableMetrics: false, // Disable metrics to avoid IndexedDB errors
-  })
-  
-  return clientInstance
+  return initPromise
 }
 
 export function useTezosWallet(): UseTezosWalletReturn {
   const [address, setAddress] = useState<string | null>(null)
-  const [network, setNetwork] = useState<TezosNetwork>("ghostnet") // Default to testnet for safety
+  const [network, setNetwork] = useState<TezosNetwork>("ghostnet")
   const [isConnecting, setIsConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const clientRef = useRef<typeof globalClient>(null)
 
-  // Check for existing connection on mount
+  // Initialize client and check for existing connection
   useEffect(() => {
-    const checkExistingConnection = async () => {
+    let mounted = true
+
+    const init = async () => {
       try {
-        // Check localStorage first to avoid unnecessary SDK loading
+        // Check localStorage first
         const wasConnected = localStorage.getItem("tezos_connected")
-        if (!wasConnected) return
-        
         const savedNetwork = localStorage.getItem("tezos_network") as TezosNetwork | null
-        if (savedNetwork) setNetwork(savedNetwork)
         
-        const client = await getDAppClient(savedNetwork || network)
-        const activeAccount = await client.getActiveAccount()
-        if (activeAccount) {
+        if (savedNetwork && mounted) {
+          setNetwork(savedNetwork)
+        }
+        
+        if (!wasConnected) return
+
+        const beacon = await getBeaconDapp()
+        
+        // Reuse global client if it exists
+        if (!globalClient) {
+          const networkType = (savedNetwork || network) === "mainnet" 
+            ? beacon.NetworkType.MAINNET 
+            : beacon.NetworkType.GHOSTNET
+
+          globalClient = new beacon.DAppClient({
+            name: "ChainPlay",
+            preferredNetwork: networkType,
+          })
+
+          // Subscribe to account changes
+          globalClient.subscribeToEvent(beacon.BeaconEvent.ACTIVE_ACCOUNT_SET, (account) => {
+            if (mounted && account) {
+              setAddress(account.address)
+            }
+          })
+        }
+
+        clientRef.current = globalClient
+
+        // Check for existing session
+        const activeAccount = await globalClient.getActiveAccount()
+        if (activeAccount && mounted) {
           setAddress(activeAccount.address)
         }
-      } catch {
-        // No existing connection, that's fine
+      } catch (err) {
+        console.error("[v0] Tezos init error:", err)
         localStorage.removeItem("tezos_connected")
       }
     }
-    
-    checkExistingConnection()
+
+    init()
+
+    return () => {
+      mounted = false
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const connect = useCallback(async (): Promise<string | null> => {
     setIsConnecting(true)
     setError(null)
-    
+
     try {
-      const client = await getDAppClient(network)
+      const beacon = await getBeaconDapp()
       
-      // Request permissions - network is set during client instantiation (preferredNetwork)
-      // The newer Beacon SDK versions don't accept network in requestPermissions
-      const permissions = await client.requestPermissions()
-      
+      const networkType = network === "mainnet" 
+        ? beacon.NetworkType.MAINNET 
+        : beacon.NetworkType.GHOSTNET
+
+      // Create client if needed (or if network changed)
+      if (!globalClient) {
+        globalClient = new beacon.DAppClient({
+          name: "ChainPlay",
+          preferredNetwork: networkType,
+        })
+
+        // Subscribe to account changes
+        globalClient.subscribeToEvent(beacon.BeaconEvent.ACTIVE_ACCOUNT_SET, (account) => {
+          if (account) {
+            setAddress(account.address)
+          }
+        })
+      }
+
+      clientRef.current = globalClient
+
+      // Request permissions - this opens the wallet selector
+      const permissions = await globalClient.requestPermissions({
+        network: { type: networkType },
+      })
+
       const connectedAddress = permissions.address
       setAddress(connectedAddress)
-      
-      // Store connection info in localStorage
+
       localStorage.setItem("tezos_connected", "true")
       localStorage.setItem("tezos_network", network)
-      
+
       return connectedAddress
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to connect Tezos wallet"
+    } catch (err: unknown) {
+      // Handle Beacon SDK error objects
+      const errorObj = err as { errorType?: string; message?: string }
+      let errorMessage = "Failed to connect Tezos wallet"
+      
+      if (errorObj.errorType === "ABORTED_ERROR") {
+        errorMessage = "Connection was cancelled"
+      } else if (errorObj.errorType === "NETWORK_NOT_SUPPORTED_ERROR") {
+        errorMessage = "Network not supported by wallet"
+      } else if (errorObj.errorType === "PARAMETERS_INVALID_ERROR") {
+        errorMessage = "Invalid connection parameters"
+      } else if (err instanceof Error) {
+        errorMessage = err.message
+      }
+      
       setError(errorMessage)
       console.error("[v0] Tezos wallet connection error:", err)
       return null
@@ -133,16 +154,11 @@ export function useTezosWallet(): UseTezosWalletReturn {
 
   const disconnect = useCallback(async () => {
     try {
-      if (clientInstance) {
-        await clientInstance.clearActiveAccount()
-        // Destroy the client to clean up resources
-        await clientInstance.destroy()
+      if (globalClient) {
+        await globalClient.clearActiveAccount()
       }
       
       setAddress(null)
-      clientInstance = null
-      
-      // Clear localStorage
       localStorage.removeItem("tezos_connected")
       localStorage.removeItem("tezos_network")
     } catch (err) {
@@ -151,15 +167,24 @@ export function useTezosWallet(): UseTezosWalletReturn {
   }, [])
 
   const switchNetwork = useCallback((newNetwork: TezosNetwork) => {
-    // Switching network requires reconnecting
     if (address) {
+      // Need to disconnect and reconnect with new network
       disconnect().then(() => {
         setNetwork(newNetwork)
-        clientInstance = null // Force new client instance with new network
+        // Destroy client so it recreates with new network
+        if (globalClient) {
+          globalClient.destroy().catch(() => {})
+          globalClient = null
+          clientRef.current = null
+        }
       })
     } else {
       setNetwork(newNetwork)
-      clientInstance = null
+      if (globalClient) {
+        globalClient.destroy().catch(() => {})
+        globalClient = null
+        clientRef.current = null
+      }
     }
   }, [address, disconnect])
 
