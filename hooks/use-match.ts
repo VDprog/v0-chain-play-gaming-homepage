@@ -80,6 +80,9 @@ export function useMatch({
   const onMatchEndRef = useRef(onMatchEnd)
   const onRoundStartRef = useRef(onRoundStart)
   
+  // Ref to track the last processed round to prevent duplicate scoring
+  const lastProcessedRoundRef = useRef<number>(0)
+  
   useEffect(() => {
     onRoundEndRef.current = onRoundEnd
     onMatchEndRef.current = onMatchEnd
@@ -118,6 +121,21 @@ export function useMatch({
   // End current round with a winner
   const endRound = useCallback((winnerId: string, loserId: string) => {
     setMatchState(prev => {
+      // GUARD 1: Prevent duplicate round processing via roundStatus
+      // If round is already finished, don't process again
+      if (prev.roundStatus === "finished") {
+        return prev
+      }
+      
+      // GUARD 2: Prevent duplicate processing via round number tracking
+      // If this round was already processed, don't process again
+      if (lastProcessedRoundRef.current >= prev.currentRound) {
+        return prev
+      }
+      
+      // Mark this round as processed
+      lastProcessedRoundRef.current = prev.currentRound
+      
       const newWins = { ...prev.playerWins }
       newWins[winnerId] = (newWins[winnerId] || 0) + 1
       
@@ -144,12 +162,19 @@ export function useMatch({
       return newState
     })
     
-    // Update player states
+    // Update player states - guard against duplicate processing using the loser's elimination status
     setPlayerStates(prev => {
+      const loserState = prev.get(loserId)
+      
+      // GUARD: If loser is already eliminated from this round, skip (duplicate call)
+      if (loserState?.isEliminated) {
+        return prev
+      }
+      
       const newStates = new Map(prev)
       
       // Update winner
-      const winnerState = newStates.get(winnerId)
+      const winnerState = prev.get(winnerId)
       if (winnerState) {
         const newWins = winnerState.wins + 1
         newStates.set(winnerId, {
@@ -160,7 +185,6 @@ export function useMatch({
       }
       
       // Mark loser as eliminated for this round
-      const loserState = newStates.get(loserId)
       if (loserState) {
         newStates.set(loserId, {
           ...loserState,
@@ -217,6 +241,9 @@ export function useMatch({
 
   // Full reset for new match
   const resetMatch = useCallback(() => {
+    // Reset the processed round tracker
+    lastProcessedRoundRef.current = 0
+    
     setMatchState({
       ...createInitialMatchState(totalRounds),
       playerWins: initializePlayerWins(playerIds),
