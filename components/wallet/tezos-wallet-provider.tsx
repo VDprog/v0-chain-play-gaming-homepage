@@ -137,6 +137,14 @@ export function TezosWalletProvider({ children }: { children: ReactNode }) {
             disableDefaultEvents: false,
             // Disable analytics to prevent "metrics not found" errors in sandboxed environments
             enableMetrics: false,
+            // Only show Temple and Kukai wallets
+            featuredWallets: [
+              "temple_chrome",
+              "temple_firefox", 
+              "temple_ios",
+              "kukai_web",
+              "kukai_ios",
+            ],
           })
 
           globalClient.subscribeToEvent(beacon.BeaconEvent.ACTIVE_ACCOUNT_SET, (account) => {
@@ -189,6 +197,14 @@ export function TezosWalletProvider({ children }: { children: ReactNode }) {
           disableDefaultEvents: false,
           // Disable analytics to prevent "metrics not found" errors in sandboxed environments
           enableMetrics: false,
+          // Only show Temple and Kukai wallets
+          featuredWallets: [
+            "temple_chrome",
+            "temple_firefox", 
+            "temple_ios",
+            "kukai_web",
+            "kukai_ios",
+          ],
         })
 
         globalClient.subscribeToEvent(beacon.BeaconEvent.ACTIVE_ACCOUNT_SET, (account) => {
