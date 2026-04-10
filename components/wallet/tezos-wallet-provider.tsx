@@ -3,50 +3,30 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react"
 import type { TezosNetwork } from "@/lib/types/player"
 
-// Suppress known Beacon SDK and WalletConnect internal errors
-// These errors occur in sandboxed environments and do NOT affect wallet connection functionality
+// Suppress known Beacon SDK internal errors that may still occur in sandboxed environments
+// We've disabled WalletConnect transport, but some edge cases may still trigger errors
 if (typeof window !== "undefined") {
-  const isWalletSdkError = (reason: unknown): boolean => {
-    if (!reason) return true // Empty errors from WalletConnect
+  const isBeaconSdkError = (reason: unknown): boolean => {
+    if (!reason) return false
     const text = String((reason as { message?: string })?.message || reason || "").toLowerCase()
     const stack = String((reason as { stack?: string })?.stack || "").toLowerCase()
     return (
-      // Beacon SDK errors
+      // Beacon SDK internal errors
       text.includes("metrics") ||
       text.includes("not found") ||
       stack.includes("beacon") ||
       stack.includes("@airgap") ||
-      stack.includes("indexeddb") ||
-      stack.includes("dappclient") ||
-      // WalletConnect errors
-      text.includes("proposal expired") ||
-      text.includes("pairing") ||
-      text.includes("session") ||
-      stack.includes("walletconnect") ||
-      stack.includes("relayer") ||
-      stack.includes("publisher") ||
-      // Empty error objects from WalletConnect
-      (text === "" && stack.includes("walletconnect"))
+      stack.includes("indexeddb")
     )
   }
 
   // Capture phase listener to intercept before other handlers
   window.addEventListener("unhandledrejection", (event) => {
-    if (isWalletSdkError(event.reason)) {
+    if (isBeaconSdkError(event.reason)) {
       event.preventDefault()
       event.stopImmediatePropagation()
     }
   }, true)
-  
-  // Also set property directly as backup
-  const originalOnUnhandledRejection = window.onunhandledrejection
-  window.onunhandledrejection = (event) => {
-    if (isWalletSdkError(event?.reason)) {
-      event?.preventDefault?.()
-      return true // Indicate handled
-    }
-    return originalOnUnhandledRejection?.call(window, event) ?? null
-  }
 }
 
 interface TezosWalletContextValue {
@@ -83,12 +63,12 @@ let metricsPatched = false
 async function getBeaconDapp() {
   if (!initPromise) {
     initPromise = import("@airgap/beacon-dapp").then((beacon) => {
-      // Monkey-patch DAppClient to disable metrics (prevents IndexedDB errors in sandboxed environments)
+      // Monkey-patch DAppClient to disable problematic features in sandboxed environments
       if (!metricsPatched && beacon.DAppClient?.prototype) {
         metricsPatched = true
         const proto = beacon.DAppClient.prototype as Record<string, unknown>
         
-        // Override sendMetrics to be a no-op
+        // Override sendMetrics to be a no-op (prevents IndexedDB errors)
         if (typeof proto.sendMetrics === "function") {
           proto.sendMetrics = async function() { return }
         }
@@ -97,6 +77,20 @@ async function getBeaconDapp() {
         if (typeof proto.updateMetricsStorage === "function") {
           proto.updateMetricsStorage = async function() { return }
         }
+        
+        // Disable WalletConnect transport initialization to prevent relayer/publisher errors
+        // The walletConnectTransport getter/setter triggers WC initialization even without config
+        // We override the internal _initWalletConnect method to be a no-op
+        if (typeof proto._initWalletConnect === "function") {
+          proto._initWalletConnect = async function() { return undefined }
+        }
+        
+        // Also ensure walletConnectTransport is always undefined
+        Object.defineProperty(proto, "walletConnectTransport", {
+          get: function() { return undefined },
+          set: function() { /* no-op */ },
+          configurable: true,
+        })
       }
       return beacon
     })
