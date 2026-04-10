@@ -131,7 +131,7 @@ export function useGameState({
         type: "broadcast",
         event: "game_state",
         payload: newState,
-      })
+      }, { httpSend: true })
     } catch (err) {
       console.error("[v0] Failed to save game state:", err)
     }
@@ -254,7 +254,7 @@ export function useGameState({
         type: "broadcast",
         event: "game_state",
         payload: newState,
-      })
+      }, { httpSend: true })
     } catch (err) {
       console.error("[v0] Failed to save game state:", err)
     }
