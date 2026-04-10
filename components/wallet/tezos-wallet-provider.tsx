@@ -3,6 +3,34 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react"
 import type { TezosNetwork } from "@/lib/types/player"
 
+// Suppress known Beacon SDK internal errors (metrics, IndexedDB issues in sandboxed environments)
+if (typeof window !== "undefined") {
+  const originalHandler = window.onunhandledrejection
+  window.addEventListener("unhandledrejection", (event) => {
+    const reason = event.reason
+    const text = String(reason?.message || reason || "").toLowerCase()
+    const stack = String(reason?.stack || "").toLowerCase()
+    
+    // Suppress Beacon SDK internal errors that don't affect functionality
+    if (
+      text.includes("metrics") ||
+      text.includes("proposal expired") ||
+      stack.includes("beacon") ||
+      stack.includes("@airgap") ||
+      stack.includes("indexeddb")
+    ) {
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      return
+    }
+    
+    // Call original handler if exists
+    if (originalHandler) {
+      originalHandler.call(window, event)
+    }
+  }, true)
+}
+
 interface TezosWalletContextValue {
   address: string | null
   network: TezosNetwork
