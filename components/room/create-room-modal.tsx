@@ -27,7 +27,7 @@ interface CreateRoomModalProps {
 
 export function CreateRoomModal({ open, onOpenChange, gameSlug, gameTitle }: CreateRoomModalProps) {
   const router = useRouter()
-  const { player, isConnected, isLoading: playerLoading } = usePlayer()
+  const { player, isConnected, isLoading: playerLoading, address } = usePlayer()
   const { createRoom } = useRooms(gameSlug)
   
   const [name, setName] = useState("")
@@ -38,9 +38,24 @@ export function CreateRoomModal({ open, onOpenChange, gameSlug, gameTitle }: Cre
   const [isCreating, setIsCreating] = useState(false)
 
   const handleCreate = async () => {
+    // Wait for player to be fully loaded
+    if (playerLoading) {
+      toast.error("Please wait", {
+        description: "Your profile is still loading...",
+      })
+      return
+    }
+    
     if (!player) {
-      toast.error("Player not ready", {
-        description: "Your profile is still loading. Please wait a moment and try again.",
+      toast.error("Player not found", {
+        description: "Could not find your player profile. Please try reconnecting your wallet.",
+      })
+      return
+    }
+    
+    if (!player.id) {
+      toast.error("Invalid player state", {
+        description: "Player ID is missing. Please refresh and try again.",
       })
       return
     }
@@ -74,16 +89,20 @@ export function CreateRoomModal({ open, onOpenChange, gameSlug, gameTitle }: Cre
   }
   
   // Determine button disabled state and reason
-  const isButtonDisabled = isCreating || playerLoading || !player
+  const isButtonDisabled = isCreating || playerLoading || !player || !player.id
   const disabledReason = isCreating 
     ? "Creating..." 
     : playerLoading 
-      ? "Loading profile..." 
+      ? "Restoring wallet session..." 
       : !player 
         ? "Player profile not found" 
-        : null
+        : !player.id
+          ? "Player ID missing"
+          : null
 
-  if (!isConnected) {
+  // Show connect wallet message only after loading is complete and not connected
+  // During loading, we show the main modal with loading state instead
+  if (!playerLoading && !isConnected) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">

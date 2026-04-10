@@ -40,11 +40,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const { 
     address, 
     isConnected,
+    isRestoring,
+    isReady,
     network 
   } = useTezosWallet()
 
+  // Only start fetching player data after wallet restore is complete AND connected
+  const shouldFetchPlayer = isReady && isConnected && address
+
   const { data, error, isLoading, mutate } = useSWR<{ player: PlayerWithStats | null }>(
-    isConnected && address
+    shouldFetchPlayer
       ? `/api/player?wallet=${address}&wallet_type=tezos` 
       : null,
     fetcher,
@@ -56,7 +61,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   // Auto-create player if wallet is connected but no player exists
   useEffect(() => {
-    const shouldAutoCreate = isConnected && address && !isLoading && data?.player === null && !isAutoCreating
+    // Only auto-create after wallet restore is complete and we've confirmed no player exists
+    const shouldAutoCreate = isReady && isConnected && address && !isLoading && data?.player === null && !isAutoCreating
     
     if (shouldAutoCreate) {
       setIsAutoCreating(true)
@@ -87,7 +93,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           setIsAutoCreating(false)
         })
     }
-  }, [isConnected, address, isLoading, data?.player, isAutoCreating, network, mutate])
+  }, [isReady, isConnected, address, isLoading, data?.player, isAutoCreating, network, mutate])
 
   const createOrUpdatePlayer = async (input: Omit<CreatePlayerInput, "wallet_address" | "wallet_type">) => {
     if (!address) throw new Error("Wallet not connected")
@@ -116,8 +122,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return result
   }
 
-  // isLoading is true during initial fetch OR during auto-creation
-  const combinedLoading = (isConnected && address ? isLoading : false) || isAutoCreating
+  // isLoading is true during:
+  // 1. Wallet restore in progress
+  // 2. Player data fetch in progress (when connected)
+  // 3. Auto-creation in progress
+  const combinedLoading = isRestoring || (shouldFetchPlayer ? isLoading : false) || isAutoCreating
 
   return (
     <PlayerContext.Provider

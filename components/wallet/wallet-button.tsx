@@ -50,6 +50,7 @@ export function WalletButton({ variant = "default", className, onConnect, onDisc
     network,
     isConnected, 
     isConnecting,
+    isRestoring,
     connect,
     disconnect,
     switchNetwork
@@ -90,12 +91,12 @@ export function WalletButton({ variant = "default", className, onConnect, onDisc
     }
   }
 
-  // Loading / Connecting State
-  if (isConnecting) {
+  // Loading / Connecting / Restoring State
+  if (isConnecting || isRestoring) {
     return (
       <Button variant="outline" size="sm" disabled className={`h-9 px-4 ${className}`}>
         <Spinner className="h-4 w-4 mr-2" />
-        Connecting...
+        {isRestoring ? "Restoring..." : "Connecting..."}
       </Button>
     )
   }

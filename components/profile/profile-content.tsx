@@ -122,7 +122,7 @@ export function ProfileContent() {
     )
   }
 
-  // Loading state
+  // Loading state (includes wallet restoring state)
   if (isLoading) {
     return (
       <main className="flex-1 py-12">

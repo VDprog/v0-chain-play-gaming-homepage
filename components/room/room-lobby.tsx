@@ -21,6 +21,7 @@ interface RoomLobbyProps {
   room: RoomWithPlayers
   game: Game | null
   player: PlayerWithStats | null
+  playerLoading?: boolean
   isInRoom: boolean
   isHost: boolean
   isReady: boolean
@@ -35,6 +36,7 @@ export function RoomLobby({
   room,
   game,
   player,
+  playerLoading = false,
   isInRoom,
   isHost,
   isReady,
@@ -101,13 +103,18 @@ export function RoomLobby({
             <Button 
               size="lg" 
               onClick={onJoin}
-              disabled={isJoining || room.player_count >= room.max_players || !player}
+              disabled={isJoining || playerLoading || room.player_count >= room.max_players || !player}
               className="w-full sm:w-auto min-w-[200px]"
             >
               {isJoining ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin mr-2" />
                   Joining...
+                </>
+              ) : playerLoading ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                  Loading Profile...
                 </>
               ) : room.player_count >= room.max_players ? (
                 "Room Full"

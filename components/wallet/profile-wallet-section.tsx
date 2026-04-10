@@ -31,6 +31,7 @@ export function ProfileWalletSection() {
     network,
     isConnected, 
     isConnecting,
+    isRestoring,
     connect,
     disconnect,
     switchNetwork
@@ -82,16 +83,18 @@ export function ProfileWalletSection() {
           </div>
         </div>
 
-        {/* Connecting State */}
-        {isConnecting && (
+        {/* Connecting/Restoring State */}
+        {(isConnecting || isRestoring) && (
           <div className="flex items-center justify-center gap-3 p-6 rounded-lg bg-muted/50 border border-border">
             <Spinner className="h-5 w-5 text-primary" />
-            <p className="text-sm text-muted-foreground">Connecting wallet...</p>
+            <p className="text-sm text-muted-foreground">
+              {isRestoring ? "Restoring wallet session..." : "Connecting wallet..."}
+            </p>
           </div>
         )}
 
         {/* Disconnected State */}
-        {!isConnected && !isConnecting && (
+        {!isConnected && !isConnecting && !isRestoring && (
           <>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-lg bg-muted/50 border border-border">
               <p className="text-sm text-muted-foreground">

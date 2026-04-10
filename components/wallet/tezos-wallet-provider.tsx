@@ -54,6 +54,8 @@ interface TezosWalletContextValue {
   network: TezosNetwork
   isConnecting: boolean
   isConnected: boolean
+  isRestoring: boolean  // True during initial session restore on page load
+  isReady: boolean      // True when restore is complete (connected or not)
   error: string | null
   connect: () => Promise<string | null>
   disconnect: () => Promise<void>
@@ -65,6 +67,8 @@ const TezosWalletContext = createContext<TezosWalletContextValue>({
   network: "ghostnet",
   isConnecting: false,
   isConnected: false,
+  isRestoring: true,   // Start as true - assume restoring until proven otherwise
+  isReady: false,      // Start as false - not ready until restore attempt complete
   error: null,
   connect: async () => null,
   disconnect: async () => {},
@@ -104,6 +108,8 @@ export function TezosWalletProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null)
   const [network, setNetwork] = useState<TezosNetwork>("ghostnet")
   const [isConnecting, setIsConnecting] = useState(false)
+  const [isRestoring, setIsRestoring] = useState(true)  // Start true - restoring on mount
+  const [isReady, setIsReady] = useState(false)         // Becomes true after restore attempt
   const [error, setError] = useState<string | null>(null)
   const clientRef = useRef<typeof globalClient>(null)
 
@@ -120,7 +126,14 @@ export function TezosWalletProvider({ children }: { children: ReactNode }) {
           setNetwork(savedNetwork)
         }
         
-        if (!wasConnected) return
+        // If no previous session, mark as ready immediately
+        if (!wasConnected) {
+          if (mounted) {
+            setIsRestoring(false)
+            setIsReady(true)
+          }
+          return
+        }
 
         const beacon = await getBeaconDapp()
         
@@ -142,12 +155,23 @@ export function TezosWalletProvider({ children }: { children: ReactNode }) {
         clientRef.current = globalClient
 
         const activeAccount = await globalClient.getActiveAccount()
-        if (activeAccount && mounted) {
-          setAddress(activeAccount.address)
+        if (mounted) {
+          if (activeAccount) {
+            setAddress(activeAccount.address)
+          } else {
+            // Session was stored but no active account - clear stale localStorage
+            localStorage.removeItem("tezos_connected")
+          }
+          setIsRestoring(false)
+          setIsReady(true)
         }
       } catch (err) {
         // Non-critical init error - user can reconnect manually
         localStorage.removeItem("tezos_connected")
+        if (mounted) {
+          setIsRestoring(false)
+          setIsReady(true)
+        }
       }
     }
 
@@ -297,6 +321,8 @@ export function TezosWalletProvider({ children }: { children: ReactNode }) {
         network,
         isConnecting,
         isConnected: !!address,
+        isRestoring,
+        isReady,
         error,
         connect,
         disconnect,
