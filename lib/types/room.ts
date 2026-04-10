@@ -4,9 +4,6 @@ export type RoomStatus = "waiting" | "starting" | "live" | "finished" | "expired
 export type RoomPlayerRole = "host" | "player" | "spectator"
 export type RoomPlayerStatus = "waiting" | "ready" | "playing" | "eliminated" | "winner" | "left"
 
-// Room expiration time in milliseconds (15 minutes)
-export const ROOM_EXPIRATION_MS = 15 * 60 * 1000
-
 // Minimum players required to start a game
 export const MIN_PLAYERS_TO_START = 2
 

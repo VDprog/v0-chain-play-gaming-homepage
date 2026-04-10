@@ -122,7 +122,7 @@ export function useHiddenButtonState({
     playerIdsRef.current = playerIds
   }, [playerIds])
 
-  // Save game state to database and broadcast
+  // Save game state to database and broadcast (also touches updated_at for lifecycle)
   const saveGameState = useCallback(async (newState: HiddenButtonState) => {
     try {
       await supabaseRef.current
@@ -132,6 +132,7 @@ export function useHiddenButtonState({
             totalRounds: newState.totalRounds,
             gameState: newState,
           },
+          updated_at: new Date().toISOString(),
         })
         .eq("id", roomId)
       

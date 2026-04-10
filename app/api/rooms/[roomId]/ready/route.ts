@@ -31,6 +31,12 @@ export async function POST(
       return NextResponse.json({ error: "Failed to update ready status" }, { status: 500 })
     }
 
+    // Touch room activity timestamp
+    await supabase
+      .from("rooms")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", roomId)
+
     // Fetch updated room
     const { data: room } = await supabase
       .from("rooms_with_players")
