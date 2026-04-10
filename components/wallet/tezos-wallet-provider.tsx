@@ -149,13 +149,23 @@ export function TezosWalletProvider({ children }: { children: ReactNode }) {
       // Request permissions - wrap to handle internal SDK errors
       let connectedAddress: string | null = null
       
+      // Use Promise.race with a resolved promise to handle the metrics error gracefully
+      // The metrics error is thrown asynchronously and doesn't affect the actual connection
+      const permissionsPromise = globalClient.requestPermissions()
+      
+      // Attach a catch to prevent unhandled rejection (metrics error is non-blocking)
+      permissionsPromise.catch(() => {
+        // Silently ignore - we'll check activeAccount as fallback
+      })
+      
       try {
-        const permissions = await globalClient.requestPermissions()
+        const permissions = await permissionsPromise
         connectedAddress = permissions.address
       } catch (permError) {
         // The Beacon SDK may throw internal errors (like metrics IndexedDB errors)
         // but still successfully connect. Check if we have an active account.
         const errorObj = permError as { errorType?: string; message?: string }
+        const errorMessage = String(errorObj?.message || permError || "").toLowerCase()
         
         // If user explicitly cancelled, don't try fallback
         if (errorObj.errorType === "ABORTED_ERROR") {
@@ -163,13 +173,21 @@ export function TezosWalletProvider({ children }: { children: ReactNode }) {
           return null
         }
         
-        // Check if connection actually succeeded despite the error
-        const activeAccount = await globalClient.getActiveAccount()
-        if (activeAccount) {
-          connectedAddress = activeAccount.address
+        // If it's the metrics error, check if connection actually succeeded
+        if (errorMessage.includes("metrics") || errorMessage.includes("indexeddb")) {
+          const activeAccount = await globalClient.getActiveAccount()
+          if (activeAccount) {
+            connectedAddress = activeAccount.address
+          }
         } else {
-          // Real connection failure
-          throw permError
+          // Check if connection actually succeeded despite the error
+          const activeAccount = await globalClient.getActiveAccount()
+          if (activeAccount) {
+            connectedAddress = activeAccount.address
+          } else {
+            // Real connection failure
+            throw permError
+          }
         }
       }
 
