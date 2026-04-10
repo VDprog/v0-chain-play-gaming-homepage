@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import useSWR from "swr"
 import type { PlayerWithStats, CreatePlayerInput, TezosNetwork } from "@/lib/types/player"
-import { useTezosWallet } from "@/hooks/use-tezos-wallet"
+import { useTezosWallet } from "@/components/wallet/tezos-wallet-provider"
 
 const fetcher = async (url: string) => {
   const res = await fetch(url)

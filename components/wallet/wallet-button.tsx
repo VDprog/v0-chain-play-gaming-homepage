@@ -18,7 +18,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog"
-import { useTezosWallet } from "@/hooks/use-tezos-wallet"
+import { useTezosWallet } from "@/components/wallet/tezos-wallet-provider"
 import type { TezosNetwork } from "@/lib/types/player"
 
 // Tezos wallet display info
