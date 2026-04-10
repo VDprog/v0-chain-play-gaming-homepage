@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Bomb, Timer, Trophy, Skull, ArrowRight, RotateCcw } from "lucide-react"
-import type { RoomWithPlayers, RoomPlayer } from "@/lib/types/room"
+import { Bomb, Timer, Trophy, Skull, ArrowRight } from "lucide-react"
+import type { RoomWithPlayers } from "@/lib/types/room"
 import type { PlayerWithStats } from "@/lib/types/player"
 import type { RoundCount } from "@/lib/types/match"
 import { useMatch } from "@/hooks/use-match"
@@ -36,16 +36,15 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
   const activePlayers = room.players.filter(p => p.role !== "spectator")
   const playerIds = activePlayers.map(p => p.id)
   
+  // Track if we've already finished the room to prevent duplicate API calls
+  const roomFinishedRef = useRef(false)
+  
   // Match system
   const {
     currentRound,
     winsNeeded,
-    isMatchFinished,
     matchWinnerId,
-    roundStatus,
     getPlayerWins,
-    isPlayerEliminated,
-    getActivePlayerIds,
     startRound,
     endRound,
     eliminatePlayer,
@@ -179,21 +178,61 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
   useEffect(() => {
     if (gamePhase !== "roundEnd") return
     
+    // Check if the round winner has enough wins to win the match
+    const winnerWins = roundWinner ? getPlayerWins(roundWinner) : 0
+    const matchIsOver = winnerWins >= winsNeeded
+    
     const timeout = setTimeout(() => {
-      if (isMatchFinished) {
+      if (matchIsOver) {
         setGamePhase("matchEnd")
       } else {
-        // Start next round
+        // Start next round automatically
         setEliminatedThisRound(new Set())
         setRoundWinner(null)
         setRoundLoser(null)
         resetRound()
-        setGamePhase("waiting")
+        
+        // Auto-start the next round after a brief pause
+        setGamePhase("countdown")
+        setCountdownTime(COUNTDOWN_SECONDS)
+        
+        countdownRef.current = setInterval(() => {
+          setCountdownTime(prev => {
+            if (prev <= 1) {
+              clearInterval(countdownRef.current!)
+              countdownRef.current = null
+              
+              // Start round
+              const holder = selectRandomHolder()
+              setBombHolderId(holder)
+              setTimeLeft(BOMB_TIMER_SECONDS)
+              setGamePhase("playing")
+              startRound()
+              
+              return 0
+            }
+            return prev - 1
+          })
+        }, 1000)
       }
     }, BETWEEN_ROUNDS_DELAY)
     
     return () => clearTimeout(timeout)
-  }, [gamePhase, isMatchFinished, resetRound])
+  }, [gamePhase, roundWinner, getPlayerWins, winsNeeded, resetRound, selectRandomHolder, startRound])
+
+  // Mark room as finished when match ends
+  useEffect(() => {
+    if (gamePhase === "matchEnd" && !roomFinishedRef.current) {
+      roomFinishedRef.current = true
+      
+      // Update room status to finished via API
+      fetch(`/api/rooms/${room.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "finished" }),
+      }).catch(console.error)
+    }
+  }, [gamePhase, room.id])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -205,9 +244,6 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
 
   // Get danger level for animations
   const dangerLevel = getDangerLevel(timeLeft)
-
-  // Match winner player
-  const matchWinnerPlayer = matchWinnerId ? activePlayers.find(p => p.id === matchWinnerId) : null
 
   return (
     <div className="h-full flex flex-col">
@@ -427,39 +463,51 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
               </span>
             </div>
             <p className="text-muted-foreground">
-              {isMatchFinished 
-                ? "Match complete!" 
-                : `Round ${currentRound + 1} starting soon...`}
+              {(() => {
+                const winnerWins = roundWinner ? getPlayerWins(roundWinner) : 0
+                const matchIsOver = winnerWins >= winsNeeded
+                return matchIsOver 
+                  ? "Match complete!" 
+                  : `Round ${currentRound + 1} starting soon...`
+              })()}
             </p>
           </div>
         )}
 
         {/* Match End State */}
-        {gamePhase === "matchEnd" && matchWinnerPlayer && (
-          <div className="text-center">
-            <div className="w-40 h-40 mx-auto mb-6 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-2xl shadow-amber-500/30">
-              <Trophy className="h-20 w-20 text-white" />
-            </div>
-            <h3 className="text-3xl font-bold mb-2">Match Winner!</h3>
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <Avatar className="h-16 w-16 ring-4 ring-amber-500">
-                <AvatarImage src={matchWinnerPlayer.avatar_url || undefined} />
-                <AvatarFallback className="text-xl bg-amber-100 text-amber-700">
-                  {matchWinnerPlayer.username.slice(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="text-left">
-                <p className="text-2xl font-bold">{matchWinnerPlayer.username}</p>
-                <p className="text-muted-foreground">
-                  {getPlayerWins(matchWinnerId!)} - {Math.max(...playerIds.map(id => id === matchWinnerId ? 0 : getPlayerWins(id)))}
-                </p>
+        {gamePhase === "matchEnd" && (() => {
+          // Use roundWinner as the match winner (the last round winner who reached winsNeeded)
+          const finalWinnerId = matchWinnerId || roundWinner
+          const finalWinnerPlayer = finalWinnerId ? activePlayers.find(p => p.id === finalWinnerId) : null
+          
+          if (!finalWinnerPlayer) return null
+          
+          return (
+            <div className="text-center">
+              <div className="w-40 h-40 mx-auto mb-6 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-2xl shadow-amber-500/30">
+                <Trophy className="h-20 w-20 text-white" />
               </div>
+              <h3 className="text-3xl font-bold mb-2">Match Winner!</h3>
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <Avatar className="h-16 w-16 ring-4 ring-amber-500">
+                  <AvatarImage src={finalWinnerPlayer.avatar_url || undefined} />
+                  <AvatarFallback className="text-xl bg-amber-100 text-amber-700">
+                    {finalWinnerPlayer.username.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="text-left">
+                  <p className="text-2xl font-bold">{finalWinnerPlayer.username}</p>
+                  <p className="text-muted-foreground">
+                    {getPlayerWins(finalWinnerId)} - {Math.max(...playerIds.filter(id => id !== finalWinnerId).map(id => getPlayerWins(id)), 0)}
+                  </p>
+                </div>
+              </div>
+              <Badge className="bg-amber-500 text-white text-lg px-4 py-1">
+                Champion!
+              </Badge>
             </div>
-            <Badge className="bg-amber-500 text-white text-lg px-4 py-1">
-              Champion!
-            </Badge>
-          </div>
-        )}
+          )
+        })()}
       </div>
 
       {/* Bottom Status Bar */}
