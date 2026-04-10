@@ -91,6 +91,9 @@ export function TezosWalletProvider({ children }: { children: ReactNode }) {
         if (!globalClient) {
           globalClient = new beacon.DAppClient({
             name: "ChainPlay",
+            disableDefaultEvents: false,
+            // Disable analytics to prevent "metrics not found" errors in sandboxed environments
+            enableMetrics: false,
           })
 
           globalClient.subscribeToEvent(beacon.BeaconEvent.ACTIVE_ACCOUNT_SET, (account) => {
@@ -129,6 +132,9 @@ export function TezosWalletProvider({ children }: { children: ReactNode }) {
       if (!globalClient) {
         globalClient = new beacon.DAppClient({
           name: "ChainPlay",
+          disableDefaultEvents: false,
+          // Disable analytics to prevent "metrics not found" errors in sandboxed environments
+          enableMetrics: false,
         })
 
         globalClient.subscribeToEvent(beacon.BeaconEvent.ACTIVE_ACCOUNT_SET, (account) => {
