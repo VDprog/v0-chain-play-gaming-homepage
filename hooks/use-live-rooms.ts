@@ -14,6 +14,7 @@ export type SortOption = "active" | "newest" | "players"
 interface UseLiveRoomsOptions {
   gameSlug?: string | null
   status?: string | null
+  network?: string | null  // Filter by Tezos network (ghostnet/mainnet)
   sort?: SortOption
   limit?: number
   refreshInterval?: number
@@ -23,6 +24,7 @@ export function useLiveRooms(options: UseLiveRoomsOptions = {}) {
   const {
     gameSlug,
     status,
+    network,  // Tezos network filter
     sort = "active",
     limit = 50,
     refreshInterval = 5000, // Poll every 5 seconds
@@ -32,6 +34,7 @@ export function useLiveRooms(options: UseLiveRoomsOptions = {}) {
   const params = new URLSearchParams()
   if (gameSlug) params.set("game", gameSlug)
   if (status) params.set("status", status)
+  if (network) params.set("network", network)
   params.set("limit", limit.toString())
 
   const queryString = params.toString()

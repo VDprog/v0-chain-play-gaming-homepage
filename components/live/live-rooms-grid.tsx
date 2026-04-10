@@ -227,10 +227,11 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 }
 
 export function LiveRoomsGrid() {
-  const { gameFilter, statusFilter, sort } = useLiveContext()
+  const { gameFilter, statusFilter, networkFilter, sort } = useLiveContext()
   const { rooms, stats, isLoading, error, refetch } = useLiveRooms({
     gameSlug: gameFilter,
     status: statusFilter,
+    network: networkFilter,
     sort,
     refreshInterval: 5000,
   })

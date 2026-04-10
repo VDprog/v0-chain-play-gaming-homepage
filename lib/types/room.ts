@@ -41,6 +41,7 @@ export interface Room {
   stakes: number
   settings: Record<string, unknown>
   created_by: string | null
+  network: string  // Tezos network (ghostnet/mainnet)
   created_at: string
   started_at: string | null
   finished_at: string | null
