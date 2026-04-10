@@ -14,6 +14,7 @@ import { TriviaRoyaleGame } from "@/components/games/modules/trivia-royale"
 import { RussianRouletteGame } from "@/components/games/modules/russian-roulette"
 import { KingOfTheHillGame } from "@/components/games/modules/king-of-the-hill"
 import { LastManStandingGame } from "@/components/games/modules/last-man-standing"
+import { HiddenButtonGame } from "@/components/games/modules/hidden-button"
 
 interface RoomGameProps {
   room: RoomWithPlayers
@@ -30,6 +31,7 @@ const gameModules: Record<string, React.ComponentType<{ room: RoomWithPlayers; p
   "russian-roulette": RussianRouletteGame,
   "king-of-the-hill": KingOfTheHillGame,
   "last-man-standing": LastManStandingGame,
+  "hidden-button": HiddenButtonGame,
 }
 
 export function RoomGame({ room, game, player, isInRoom, isSpectator = false }: RoomGameProps) {
@@ -155,6 +157,7 @@ function DefaultGameView({ room, game }: { room: RoomWithPlayers; game: Game | n
     "russian-roulette": <CircleDot className="h-16 w-16" />,
     "king-of-the-hill": <Crown className="h-16 w-16" />,
     "last-man-standing": <Timer className="h-16 w-16" />,
+    "hidden-button": <CircleDot className="h-16 w-16" />,
   }
 
   return (

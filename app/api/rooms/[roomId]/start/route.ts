@@ -82,22 +82,47 @@ export async function POST(
     const playerWins: Record<string, number> = {}
     playerIds.forEach(id => { playerWins[id] = 0 })
     
-    const freshGameState = {
-      matchStatus: "countdown", // Start directly in countdown - no waiting!
-      currentRound: 1,
-      totalRounds,
-      playerWins,
-      bombHolderId: null,
-      timerStartedAt: null,
-      timerDuration: 15,
-      eliminatedThisRound: [],
-      roundWinnerId: null,
-      roundLoserId: null,
-      matchWinnerId: null,
-      countdownEndsAt,
-      lastUpdatedBy: player_id,
-      lastUpdatedAt: Date.now(),
-      version: 1, // Start at version 1 so it's recognized as valid
+    // Game-specific state structure based on game slug
+    const gameSlug = room.game_slug as string
+    
+    let freshGameState: Record<string, unknown>
+    
+    if (gameSlug === "hidden-button") {
+      // Hidden Button specific state
+      freshGameState = {
+        matchStatus: "countdown",
+        currentRound: 1,
+        totalRounds,
+        playerWins,
+        buttonPosition: null,      // Generated when round becomes active
+        roundStartedAt: null,
+        roundDuration: 10,         // 10 seconds to find and click button
+        roundWinnerId: null,
+        matchWinnerId: null,
+        countdownEndsAt,
+        lastUpdatedBy: player_id,
+        lastUpdatedAt: Date.now(),
+        version: 1,
+      }
+    } else {
+      // Pass the Bomb / default state structure
+      freshGameState = {
+        matchStatus: "countdown",
+        currentRound: 1,
+        totalRounds,
+        playerWins,
+        bombHolderId: null,
+        timerStartedAt: null,
+        timerDuration: 15,
+        eliminatedThisRound: [],
+        roundWinnerId: null,
+        roundLoserId: null,
+        matchWinnerId: null,
+        countdownEndsAt,
+        lastUpdatedBy: player_id,
+        lastUpdatedAt: Date.now(),
+        version: 1,
+      }
     }
 
     // Start the game - update room status to "starting" and reset game state
