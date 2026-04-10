@@ -369,20 +369,46 @@ export function useGameState({
     }))
   }, [isHost, gameState, winsNeeded, updateGameState])
 
-  // Start next round (host only)
+  // Start next round (host only) - directly transitions to countdown
   const startNextRound = useCallback(async () => {
     if (!isHost || !gameState) return
     
+    const countdownEndsAt = Date.now() + (COUNTDOWN_DURATION * 1000)
+    
+    // Clear any existing countdown timeout
+    if (countdownTimeoutRef.current) {
+      clearTimeout(countdownTimeoutRef.current)
+    }
+    
+    // Transition directly to countdown (skip waiting state)
     await updateGameState(prev => ({
       ...prev,
       currentRound: prev.currentRound + 1,
-      matchStatus: "waiting",
+      matchStatus: "countdown",
+      countdownEndsAt,
       eliminatedThisRound: [],
       roundWinnerId: null,
       roundLoserId: null,
       bombHolderId: null,
       timerStartedAt: null,
     }))
+    
+    // Host schedules transition to playing after countdown
+    countdownTimeoutRef.current = setTimeout(async () => {
+      // Use the ref to get current playerIds (avoids stale closure)
+      const currentPlayerIds = playerIdsRef.current
+      // Pick random bomb holder from all players
+      const randomHolder = currentPlayerIds[Math.floor(Math.random() * currentPlayerIds.length)]
+      
+      await updateGameState(prev => ({
+        ...prev,
+        matchStatus: "playing",
+        bombHolderId: randomHolder,
+        timerStartedAt: Date.now(),
+        timerDuration: INITIAL_TIMER_DURATION,
+        countdownEndsAt: null,
+      }))
+    }, COUNTDOWN_DURATION * 1000)
   }, [isHost, gameState, updateGameState])
 
   // End match (host only)

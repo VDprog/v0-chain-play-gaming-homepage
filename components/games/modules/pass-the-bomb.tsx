@@ -43,6 +43,7 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
   // Track refs for host-side timer management
   const timerCheckRef = useRef<NodeJS.Timeout | null>(null)
   const roundEndTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const autoStartedRef = useRef(false)
   
   // Shared game state - synchronized across all players
   const {
@@ -82,6 +83,22 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
 
   // Get danger level for animations
   const dangerLevel = getDangerLevel(timeRemaining)
+
+  // HOST ONLY: Auto-start countdown when game first loads and state is "waiting"
+  // This handles the transition from lobby "Start Game" button to actual game start
+  useEffect(() => {
+    if (!isHost || !gameState || autoStartedRef.current) return
+    
+    // Only auto-start if we're in waiting state and this is round 1
+    // This means the host just pressed "Start Game" in the lobby
+    if (gameState.matchStatus === "waiting" && gameState.currentRound === 1 && gameState.version > 0) {
+      autoStartedRef.current = true
+      // Small delay to ensure all state is synced
+      setTimeout(() => {
+        startCountdown()
+      }, 100)
+    }
+  }, [isHost, gameState?.matchStatus, gameState?.currentRound, gameState?.version, startCountdown])
 
   // HOST ONLY: Monitor timer and handle round completion
   useEffect(() => {
@@ -147,12 +164,8 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
       if (matchIsOver) {
         await endMatch(winnerId)
       } else {
-        // Start next round - this goes to waiting then auto-starts countdown
+        // Start next round - automatically transitions to countdown
         await startNextRound()
-        // Small delay then start countdown for next round
-        setTimeout(() => {
-          startCountdown()
-        }, 500)
       }
     }, BETWEEN_ROUNDS_DELAY)
     
@@ -161,7 +174,7 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
         clearTimeout(roundEndTimeoutRef.current)
       }
     }
-  }, [isHost, gameState?.matchStatus, gameState?.roundWinnerId, gameState?.playerWins, winsNeeded, endMatch, startNextRound, startCountdown])
+  }, [isHost, gameState?.matchStatus, gameState?.roundWinnerId, gameState?.playerWins, winsNeeded, endMatch, startNextRound])
 
   // Cleanup on unmount
   useEffect(() => {
