@@ -65,10 +65,28 @@ const TezosWalletContext = createContext<TezosWalletContextValue>({
 // Global client to prevent multiple instances
 let globalClient: InstanceType<typeof import("@airgap/beacon-dapp").DAppClient> | null = null
 let initPromise: Promise<typeof import("@airgap/beacon-dapp")> | null = null
+let metricsPatched = false
 
 async function getBeaconDapp() {
   if (!initPromise) {
-    initPromise = import("@airgap/beacon-dapp")
+    initPromise = import("@airgap/beacon-dapp").then((beacon) => {
+      // Monkey-patch DAppClient to disable metrics (prevents IndexedDB errors in sandboxed environments)
+      if (!metricsPatched && beacon.DAppClient?.prototype) {
+        metricsPatched = true
+        const proto = beacon.DAppClient.prototype as Record<string, unknown>
+        
+        // Override sendMetrics to be a no-op
+        if (typeof proto.sendMetrics === "function") {
+          proto.sendMetrics = async function() { return }
+        }
+        
+        // Override updateMetricsStorage to be a no-op
+        if (typeof proto.updateMetricsStorage === "function") {
+          proto.updateMetricsStorage = async function() { return }
+        }
+      }
+      return beacon
+    })
   }
   return initPromise
 }
