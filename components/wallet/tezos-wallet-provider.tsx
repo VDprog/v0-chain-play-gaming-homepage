@@ -3,27 +3,36 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react"
 import type { TezosNetwork } from "@/lib/types/player"
 
-// Suppress known Beacon SDK internal errors (metrics, IndexedDB issues in sandboxed environments)
-// This error is a known issue with @airgap/beacon-dapp in sandboxed environments
-// and does NOT affect wallet connection functionality
+// Suppress known Beacon SDK and WalletConnect internal errors
+// These errors occur in sandboxed environments and do NOT affect wallet connection functionality
 if (typeof window !== "undefined") {
-  const isBeaconError = (reason: unknown): boolean => {
+  const isWalletSdkError = (reason: unknown): boolean => {
+    if (!reason) return true // Empty errors from WalletConnect
     const text = String((reason as { message?: string })?.message || reason || "").toLowerCase()
     const stack = String((reason as { stack?: string })?.stack || "").toLowerCase()
     return (
+      // Beacon SDK errors
       text.includes("metrics") ||
       text.includes("not found") ||
-      text.includes("proposal expired") ||
       stack.includes("beacon") ||
       stack.includes("@airgap") ||
       stack.includes("indexeddb") ||
-      stack.includes("dappclient")
+      stack.includes("dappclient") ||
+      // WalletConnect errors
+      text.includes("proposal expired") ||
+      text.includes("pairing") ||
+      text.includes("session") ||
+      stack.includes("walletconnect") ||
+      stack.includes("relayer") ||
+      stack.includes("publisher") ||
+      // Empty error objects from WalletConnect
+      (text === "" && stack.includes("walletconnect"))
     )
   }
 
   // Capture phase listener to intercept before other handlers
   window.addEventListener("unhandledrejection", (event) => {
-    if (isBeaconError(event.reason)) {
+    if (isWalletSdkError(event.reason)) {
       event.preventDefault()
       event.stopImmediatePropagation()
     }
@@ -32,7 +41,7 @@ if (typeof window !== "undefined") {
   // Also set property directly as backup
   const originalOnUnhandledRejection = window.onunhandledrejection
   window.onunhandledrejection = (event) => {
-    if (isBeaconError(event?.reason)) {
+    if (isWalletSdkError(event?.reason)) {
       event?.preventDefault?.()
       return true // Indicate handled
     }
