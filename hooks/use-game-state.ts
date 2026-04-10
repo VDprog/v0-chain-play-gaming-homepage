@@ -350,28 +350,31 @@ export function useGameState({
 
   // End round (host only)
   const endRound = useCallback(async (winnerId: string, loserId: string) => {
-    if (!isHost || !gameState) return
+    if (!isHost) return
     
-    const newWins = { ...gameState.playerWins }
-    newWins[winnerId] = (newWins[winnerId] || 0) + 1
-    
-    const matchIsOver = newWins[winnerId] >= winsNeeded
-    
-    await updateGameState(prev => ({
-      ...prev,
-      matchStatus: "roundEnd",
-      playerWins: newWins,
-      roundWinnerId: winnerId,
-      roundLoserId: loserId,
-      eliminatedThisRound: [...prev.eliminatedThisRound, loserId],
-      matchWinnerId: matchIsOver ? winnerId : null,
-      timerStartedAt: null,
-    }))
-  }, [isHost, gameState, winsNeeded, updateGameState])
+    // Use functional updater to avoid stale closure - compute newWins inside the updater
+    await updateGameState(prev => {
+      const newWins = { ...prev.playerWins }
+      newWins[winnerId] = (newWins[winnerId] || 0) + 1
+      
+      const matchIsOver = newWins[winnerId] >= winsNeeded
+      
+      return {
+        ...prev,
+        matchStatus: "roundEnd",
+        playerWins: newWins,
+        roundWinnerId: winnerId,
+        roundLoserId: loserId,
+        eliminatedThisRound: [...prev.eliminatedThisRound, loserId],
+        matchWinnerId: matchIsOver ? winnerId : null,
+        timerStartedAt: null,
+      }
+    })
+  }, [isHost, winsNeeded, updateGameState])
 
   // Start next round (host only) - directly transitions to countdown
   const startNextRound = useCallback(async () => {
-    if (!isHost || !gameState) return
+    if (!isHost) return
     
     const countdownEndsAt = Date.now() + (COUNTDOWN_DURATION * 1000)
     
