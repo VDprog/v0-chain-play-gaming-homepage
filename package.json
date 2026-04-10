@@ -11,8 +11,6 @@
   "dependencies": {
     "@airgap/beacon-dapp": "^4.8.1",
     "@airgap/beacon-sdk": "^4.8.1",
-    "@walletconnect/sign-client": "^2.18.0",
-    "@walletconnect/utils": "^2.18.0",
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-accordion": "1.2.12",
     "@radix-ui/react-alert-dialog": "1.1.15",
@@ -42,9 +40,11 @@
     "@radix-ui/react-toggle-group": "1.1.11",
     "@radix-ui/react-tooltip": "1.2.8",
     "@supabase/ssr": "^0.10.0",
+    "@supabase/supabase-js": "^2.103.0",
     "@tanstack/react-query": "^5.62.0",
     "@vercel/analytics": "1.6.1",
-    
+    "@walletconnect/sign-client": "^2.18.0",
+    "@walletconnect/utils": "^2.18.0",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -65,7 +65,6 @@
     "swr": "^2.4.1",
     "tailwind-merge": "^3.3.1",
     "vaul": "^1.1.2",
-    
     "zod": "^3.24.1"
   },
   "devDependencies": {
