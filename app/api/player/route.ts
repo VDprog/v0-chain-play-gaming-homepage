@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import type { CreatePlayerInput } from "@/lib/types/player"
+import { validateUsername, normalizeUsername } from "@/lib/validation/username"
 
 // GET /api/player?wallet=tz1...&wallet_type=tezos
 export async function GET(request: NextRequest) {
@@ -65,6 +66,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Strict username validation (backend enforcement)
+    const usernameValidation = validateUsername(body.username)
+    if (!usernameValidation.isValid) {
+      return NextResponse.json(
+        { error: usernameValidation.error, code: "INVALID_USERNAME" },
+        { status: 400 }
+      )
+    }
+
     const supabase = await createClient()
     
     // Tezos addresses are case-sensitive, don't lowercase
@@ -110,6 +120,21 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Check username uniqueness before creating (case-insensitive)
+    const normalizedUsername = normalizeUsername(body.username)
+    const { data: usernameTaken } = await supabase
+      .from("players")
+      .select("id")
+      .ilike("username", normalizedUsername)
+      .maybeSingle()
+
+    if (usernameTaken) {
+      return NextResponse.json(
+        { error: "Username is already taken", code: "USERNAME_TAKEN" },
+        { status: 409 }
+      )
+    }
+
     // Create new player
     const { data: newPlayer, error: insertError } = await supabase
       .from("players")
@@ -124,6 +149,13 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (insertError) {
+      // Handle race condition where username was taken between check and insert
+      if (insertError.code === "23505" && insertError.message?.includes("username")) {
+        return NextResponse.json(
+          { error: "Username is already taken", code: "USERNAME_TAKEN" },
+          { status: 409 }
+        )
+      }
       return NextResponse.json({ error: insertError.message }, { status: 500 })
     }
 

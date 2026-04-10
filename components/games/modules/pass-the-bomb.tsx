@@ -1,14 +1,14 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Bomb, Timer, Trophy, Skull, ArrowRight } from "lucide-react"
+import { Bomb, Timer, Trophy, Skull, ArrowRight, Loader2 } from "lucide-react"
 import type { RoomWithPlayers } from "@/lib/types/room"
 import type { PlayerWithStats } from "@/lib/types/player"
 import type { RoundCount } from "@/lib/types/match"
-import { useMatch } from "@/hooks/use-match"
+import { useGameState } from "@/hooks/use-game-state"
 import { getWinsNeeded } from "@/lib/types/match"
 
 interface PassTheBombGameProps {
@@ -18,8 +18,6 @@ interface PassTheBombGameProps {
 }
 
 // Game constants
-const BOMB_TIMER_SECONDS = 15
-const COUNTDOWN_SECONDS = 3
 const BETWEEN_ROUNDS_DELAY = 3000
 
 // Danger levels based on time remaining
@@ -36,214 +34,187 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
   const activePlayers = room.players.filter(p => p.role !== "spectator")
   const playerIds = activePlayers.map(p => p.id)
   
-  // Track if we've already finished the room to prevent duplicate API calls
-  const roomFinishedRef = useRef(false)
+  // Check if current player is the host (authoritative source)
+  const currentPlayerInRoom = player ? room.players.find(p => p.id === player.id) : null
+  const isHost = currentPlayerInRoom?.role === "host"
   
-  // Match system
+  const winsNeeded = getWinsNeeded(totalRounds)
+  
+  // Track refs for host-side timer management
+  const timerCheckRef = useRef<NodeJS.Timeout | null>(null)
+  const roundEndTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  
+  // Shared game state - synchronized across all players
   const {
-    currentRound,
-    winsNeeded,
-    matchWinnerId,
-    getPlayerWins,
-    startRound,
+    gameState,
+    isLoading,
+    error,
+    startCountdown,
+    passBomb,
     endRound,
-    eliminatePlayer,
-    resetRound,
-  } = useMatch({
+    startNextRound,
+    endMatch,
+    timeRemaining,
+    countdownRemaining,
+  } = useGameState({
+    roomId: room.id,
+    playerId: player?.id || null,
+    isHost,
     totalRounds,
     playerIds,
   })
 
-  // Local game state
-  const [gamePhase, setGamePhase] = useState<"waiting" | "countdown" | "playing" | "explosion" | "roundEnd" | "matchEnd">("waiting")
-  const [timeLeft, setTimeLeft] = useState(BOMB_TIMER_SECONDS)
-  const [countdownTime, setCountdownTime] = useState(COUNTDOWN_SECONDS)
-  const [bombHolderId, setBombHolderId] = useState<string | null>(null)
-  const [eliminatedThisRound, setEliminatedThisRound] = useState<Set<string>>(new Set())
-  const [roundWinner, setRoundWinner] = useState<string | null>(null)
-  const [roundLoser, setRoundLoser] = useState<string | null>(null)
-  
-  // Refs for intervals
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
-  const countdownRef = useRef<NodeJS.Timeout | null>(null)
-  
   // Current player info
   const currentPlayerId = player?.id
-  const hasBomb = currentPlayerId === bombHolderId
-  const isEliminated = currentPlayerId ? eliminatedThisRound.has(currentPlayerId) : false
-  const canPass = hasBomb && gamePhase === "playing" && !isSpectator && !isEliminated
+  const hasBomb = currentPlayerId === gameState?.bombHolderId
+  const isEliminated = currentPlayerId ? gameState?.eliminatedThisRound.includes(currentPlayerId) : false
+  const canPass = hasBomb && gameState?.matchStatus === "playing" && !isSpectator && !isEliminated
 
   // Get bomb holder player info
-  const bombHolder = activePlayers.find(p => p.id === bombHolderId)
+  const bombHolder = gameState?.bombHolderId 
+    ? activePlayers.find(p => p.id === gameState.bombHolderId) 
+    : null
   
   // Get players still active this round
-  const playersAliveThisRound = activePlayers.filter(p => !eliminatedThisRound.has(p.id))
+  const playersAliveThisRound = gameState 
+    ? activePlayers.filter(p => !gameState.eliminatedThisRound.includes(p.id))
+    : activePlayers
 
-  // Select random bomb holder from active players
-  const selectRandomHolder = useCallback(() => {
-    const active = activePlayers.filter(p => !eliminatedThisRound.has(p.id))
-    if (active.length === 0) return null
-    const randomIndex = Math.floor(Math.random() * active.length)
-    return active[randomIndex].id
-  }, [activePlayers, eliminatedThisRound])
+  // Get danger level for animations
+  const dangerLevel = getDangerLevel(timeRemaining)
 
-  // Start the game
-  const handleStartGame = useCallback(() => {
-    if (isSpectator) return
-    
-    // Start countdown
-    setGamePhase("countdown")
-    setCountdownTime(COUNTDOWN_SECONDS)
-    setEliminatedThisRound(new Set())
-    
-    countdownRef.current = setInterval(() => {
-      setCountdownTime(prev => {
-        if (prev <= 1) {
-          clearInterval(countdownRef.current!)
-          countdownRef.current = null
-          
-          // Start round
-          const holder = selectRandomHolder()
-          setBombHolderId(holder)
-          setTimeLeft(BOMB_TIMER_SECONDS)
-          setGamePhase("playing")
-          startRound()
-          
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-  }, [isSpectator, selectRandomHolder, startRound])
-
-  // Pass the bomb to another player
-  const handlePassBomb = useCallback((targetId: string) => {
-    if (!canPass || targetId === currentPlayerId || eliminatedThisRound.has(targetId)) return
-    setBombHolderId(targetId)
-  }, [canPass, currentPlayerId, eliminatedThisRound])
-
-  // Timer countdown
+  // HOST ONLY: Monitor timer and handle round completion
   useEffect(() => {
-    if (gamePhase !== "playing") return
+    if (!isHost || !gameState) return
     
-    timerRef.current = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          // BOOM! Bomb explodes
-          clearInterval(timerRef.current!)
-          timerRef.current = null
-          
-          // Eliminate current holder
-          if (bombHolderId) {
-            const newEliminated = new Set(eliminatedThisRound)
-            newEliminated.add(bombHolderId)
-            setEliminatedThisRound(newEliminated)
-            eliminatePlayer(bombHolderId)
-            setRoundLoser(bombHolderId)
-            
-            // Check if only one player left
-            const remaining = activePlayers.filter(p => !newEliminated.has(p.id))
-            
-            if (remaining.length === 1) {
-              // Round winner
-              const winner = remaining[0]
-              setRoundWinner(winner.id)
-              endRound(winner.id, bombHolderId)
-              setGamePhase("roundEnd")
-            } else {
-              // Continue with remaining players
-              setGamePhase("explosion")
-              setTimeout(() => {
-                // Pick new bomb holder from remaining players
-                const newHolder = remaining[Math.floor(Math.random() * remaining.length)]
-                setBombHolderId(newHolder.id)
-                setTimeLeft(BOMB_TIMER_SECONDS)
-                setGamePhase("playing")
-              }, 2000)
-            }
-          }
-          
-          return 0
+    // Clear any existing timer
+    if (timerCheckRef.current) {
+      clearInterval(timerCheckRef.current)
+      timerCheckRef.current = null
+    }
+    
+    // Only monitor during playing phase
+    if (gameState.matchStatus !== "playing" || !gameState.timerStartedAt) return
+    
+    // Check timer every 100ms
+    timerCheckRef.current = setInterval(() => {
+      const elapsed = (Date.now() - gameState.timerStartedAt!) / 1000
+      const remaining = gameState.timerDuration - elapsed
+      
+      if (remaining <= 0 && gameState.bombHolderId) {
+        // Timer expired - bomb explodes!
+        clearInterval(timerCheckRef.current!)
+        timerCheckRef.current = null
+        
+        const loserId = gameState.bombHolderId
+        const newEliminated = [...gameState.eliminatedThisRound, loserId]
+        const remaining = activePlayers.filter(p => !newEliminated.includes(p.id))
+        
+        if (remaining.length === 1) {
+          // Round winner determined
+          const winnerId = remaining[0].id
+          endRound(winnerId, loserId)
         }
-        return prev - 1
-      })
-    }, 1000)
+        // If more than 1 player remaining, continue with next bomb holder
+        // This would need additional logic for multi-player games
+      }
+    }, 100)
     
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
+      if (timerCheckRef.current) {
+        clearInterval(timerCheckRef.current)
+      }
     }
-  }, [gamePhase, bombHolderId, activePlayers, eliminatedThisRound, eliminatePlayer, endRound])
+  }, [isHost, gameState?.matchStatus, gameState?.timerStartedAt, gameState?.bombHolderId, gameState?.timerDuration, gameState?.eliminatedThisRound, activePlayers, endRound])
 
-  // Handle round end -> next round or match end
+  // HOST ONLY: Handle round end -> next round or match end
   useEffect(() => {
-    if (gamePhase !== "roundEnd") return
+    if (!isHost || !gameState || gameState.matchStatus !== "roundEnd") return
     
-    // Check if the round winner has enough wins to win the match
-    const winnerWins = roundWinner ? getPlayerWins(roundWinner) : 0
+    // Clear any existing timeout
+    if (roundEndTimeoutRef.current) {
+      clearTimeout(roundEndTimeoutRef.current)
+      roundEndTimeoutRef.current = null
+    }
+    
+    const winnerId = gameState.roundWinnerId
+    if (!winnerId) return
+    
+    const winnerWins = gameState.playerWins[winnerId] || 0
     const matchIsOver = winnerWins >= winsNeeded
     
-    const timeout = setTimeout(() => {
+    roundEndTimeoutRef.current = setTimeout(async () => {
       if (matchIsOver) {
-        setGamePhase("matchEnd")
+        await endMatch(winnerId)
       } else {
-        // Start next round automatically
-        setEliminatedThisRound(new Set())
-        setRoundWinner(null)
-        setRoundLoser(null)
-        resetRound()
-        
-        // Auto-start the next round after a brief pause
-        setGamePhase("countdown")
-        setCountdownTime(COUNTDOWN_SECONDS)
-        
-        countdownRef.current = setInterval(() => {
-          setCountdownTime(prev => {
-            if (prev <= 1) {
-              clearInterval(countdownRef.current!)
-              countdownRef.current = null
-              
-              // Start round
-              const holder = selectRandomHolder()
-              setBombHolderId(holder)
-              setTimeLeft(BOMB_TIMER_SECONDS)
-              setGamePhase("playing")
-              startRound()
-              
-              return 0
-            }
-            return prev - 1
-          })
-        }, 1000)
+        // Start next round - this goes to waiting then auto-starts countdown
+        await startNextRound()
+        // Small delay then start countdown for next round
+        setTimeout(() => {
+          startCountdown()
+        }, 500)
       }
     }, BETWEEN_ROUNDS_DELAY)
     
-    return () => clearTimeout(timeout)
-  }, [gamePhase, roundWinner, getPlayerWins, winsNeeded, resetRound, selectRandomHolder, startRound])
-
-  // Mark room as finished when match ends
-  useEffect(() => {
-    if (gamePhase === "matchEnd" && !roomFinishedRef.current) {
-      roomFinishedRef.current = true
-      
-      // Update room status to finished via API
-      fetch(`/api/rooms/${room.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "finished" }),
-      }).catch(console.error)
+    return () => {
+      if (roundEndTimeoutRef.current) {
+        clearTimeout(roundEndTimeoutRef.current)
+      }
     }
-  }, [gamePhase, room.id])
+  }, [isHost, gameState?.matchStatus, gameState?.roundWinnerId, gameState?.playerWins, winsNeeded, endMatch, startNextRound, startCountdown])
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
-      if (countdownRef.current) clearInterval(countdownRef.current)
+      if (timerCheckRef.current) clearInterval(timerCheckRef.current)
+      if (roundEndTimeoutRef.current) clearTimeout(roundEndTimeoutRef.current)
     }
   }, [])
 
-  // Get danger level for animations
-  const dangerLevel = getDangerLevel(timeLeft)
+  // Handle start game button click
+  const handleStartGame = async () => {
+    if (isSpectator || !isHost) return
+    await startCountdown()
+  }
+
+  // Handle passing the bomb
+  const handlePassBomb = async (targetId: string) => {
+    if (!canPass || targetId === currentPlayerId) return
+    if (gameState?.eliminatedThisRound.includes(targetId)) return
+    await passBomb(targetId)
+  }
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading game state...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-destructive mb-2">Failed to load game</p>
+          <p className="text-sm text-muted-foreground">{error}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!gameState) return null
+
+  const gamePhase = gameState.matchStatus
+  const currentRound = gameState.currentRound
+  const roundWinner = gameState.roundWinnerId
+  const roundLoser = gameState.roundLoserId
+  const matchWinnerId = gameState.matchWinnerId
 
   return (
     <div className="h-full flex flex-col">
@@ -282,7 +253,7 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
               <span className={`font-mono font-bold text-xl tabular-nums ${
                 dangerLevel === "critical" ? "animate-bounce" : ""
               }`}>
-                {timeLeft}s
+                {timeRemaining}s
               </span>
             </div>
           )}
@@ -301,7 +272,7 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
                 </Avatar>
                 <span className="text-sm font-medium">{p.username}</span>
                 <Badge variant="secondary" className="font-bold">
-                  {getPlayerWins(p.id)}
+                  {gameState.playerWins[p.id] || 0}
                 </Badge>
               </div>
             ))}
@@ -323,11 +294,14 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
             <p className="text-muted-foreground mb-6">
               {activePlayers.length} players ready
             </p>
-            {!isSpectator && (
+            {!isSpectator && isHost && (
               <Button size="lg" onClick={handleStartGame} className="gap-2">
                 <Bomb className="h-5 w-5" />
                 Start Round
               </Button>
+            )}
+            {!isSpectator && !isHost && (
+              <p className="text-muted-foreground">Waiting for host to start...</p>
             )}
           </div>
         )}
@@ -336,34 +310,30 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
         {gamePhase === "countdown" && (
           <div className="text-center">
             <div className="w-40 h-40 mx-auto mb-6 rounded-full bg-primary/10 flex items-center justify-center animate-pulse">
-              <span className="text-6xl font-bold text-primary">{countdownTime}</span>
+              <span className="text-6xl font-bold text-primary">{countdownRemaining}</span>
             </div>
             <h3 className="text-2xl font-bold">Get Ready!</h3>
           </div>
         )}
 
         {/* Playing State */}
-        {(gamePhase === "playing" || gamePhase === "explosion") && (
+        {gamePhase === "playing" && (
           <div className="w-full max-w-2xl">
             {/* Bomb Holder Display */}
             <div className="text-center mb-8">
               {bombHolder && (
                 <div className={`inline-block p-6 rounded-2xl transition-all ${
-                  gamePhase === "explosion" && bombHolderId === roundLoser
-                    ? "bg-red-100 animate-shake"
-                    : dangerLevel === "calm" ? "bg-muted" :
-                      dangerLevel === "warning" ? "bg-amber-50" :
-                      dangerLevel === "danger" ? "bg-orange-50" :
-                      "bg-red-50"
+                  dangerLevel === "calm" ? "bg-muted" :
+                  dangerLevel === "warning" ? "bg-amber-50" :
+                  dangerLevel === "danger" ? "bg-orange-50" :
+                  "bg-red-50"
                 }`}>
                   <div className="relative inline-block">
                     <Avatar className={`h-24 w-24 ring-4 transition-all ${
-                      gamePhase === "explosion" && bombHolderId === roundLoser
-                        ? "ring-red-500"
-                        : dangerLevel === "calm" ? "ring-primary/50" :
-                          dangerLevel === "warning" ? "ring-amber-500" :
-                          dangerLevel === "danger" ? "ring-orange-500" :
-                          "ring-red-500"
+                      dangerLevel === "calm" ? "ring-primary/50" :
+                      dangerLevel === "warning" ? "ring-amber-500" :
+                      dangerLevel === "danger" ? "ring-orange-500" :
+                      "ring-red-500"
                     }`}>
                       <AvatarImage src={bombHolder.avatar_url || undefined} />
                       <AvatarFallback className="text-2xl bg-primary/10 text-primary font-bold">
@@ -373,31 +343,23 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
                     
                     {/* Bomb Icon */}
                     <div className={`absolute -top-2 -right-2 p-2 rounded-full transition-all ${
-                      gamePhase === "explosion"
-                        ? "bg-red-500 scale-150"
-                        : dangerLevel === "calm" ? "bg-primary" :
-                          dangerLevel === "warning" ? "bg-amber-500 animate-pulse" :
-                          dangerLevel === "danger" ? "bg-orange-500 animate-bounce" :
-                          "bg-red-500 animate-ping"
+                      dangerLevel === "calm" ? "bg-primary" :
+                      dangerLevel === "warning" ? "bg-amber-500 animate-pulse" :
+                      dangerLevel === "danger" ? "bg-orange-500 animate-bounce" :
+                      "bg-red-500 animate-ping"
                     }`}>
-                      {gamePhase === "explosion" ? (
-                        <Skull className="h-5 w-5 text-white" />
-                      ) : (
-                        <Bomb className={`h-5 w-5 text-white ${dangerLevel === "critical" ? "animate-spin" : ""}`} />
-                      )}
+                      <Bomb className={`h-5 w-5 text-white ${dangerLevel === "critical" ? "animate-spin" : ""}`} />
                     </div>
                   </div>
                   
                   <p className="mt-4 font-bold text-lg">{bombHolder.username}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {gamePhase === "explosion" ? "BOOM! Eliminated!" : "has the bomb!"}
-                  </p>
+                  <p className="text-sm text-muted-foreground">has the bomb!</p>
                 </div>
               )}
             </div>
 
             {/* Pass Targets */}
-            {canPass && gamePhase === "playing" && (
+            {canPass && (
               <div>
                 <p className="text-center text-sm text-muted-foreground mb-4">Pass the bomb to:</p>
                 <div className="flex flex-wrap justify-center gap-3">
@@ -425,13 +387,20 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
               </div>
             )}
 
-            {/* Eliminated Display (for spectators/eliminated players) */}
-            {eliminatedThisRound.size > 0 && (
+            {/* Waiting for bomb holder to pass */}
+            {!canPass && !hasBomb && gamePhase === "playing" && (
+              <div className="text-center">
+                <p className="text-muted-foreground">Waiting for {bombHolder?.username} to pass the bomb...</p>
+              </div>
+            )}
+
+            {/* Eliminated Display */}
+            {gameState.eliminatedThisRound.length > 0 && (
               <div className="mt-8 text-center">
                 <p className="text-sm text-muted-foreground mb-2">Eliminated this round:</p>
                 <div className="flex justify-center gap-2">
                   {activePlayers
-                    .filter(p => eliminatedThisRound.has(p.id))
+                    .filter(p => gameState.eliminatedThisRound.includes(p.id))
                     .map(p => (
                       <div key={p.id} className="flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs">
                         <Skull className="h-3 w-3" />
@@ -464,19 +433,28 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
             </div>
             <p className="text-muted-foreground">
               {(() => {
-                const winnerWins = roundWinner ? getPlayerWins(roundWinner) : 0
+                const winnerWins = gameState.playerWins[roundWinner] || 0
                 const matchIsOver = winnerWins >= winsNeeded
                 return matchIsOver 
                   ? "Match complete!" 
                   : `Round ${currentRound + 1} starting soon...`
               })()}
             </p>
+            
+            {/* Show who got eliminated */}
+            {roundLoser && (
+              <div className="mt-4 flex items-center justify-center gap-2 text-red-600">
+                <Skull className="h-4 w-4" />
+                <span className="text-sm">
+                  {activePlayers.find(p => p.id === roundLoser)?.username} eliminated
+                </span>
+              </div>
+            )}
           </div>
         )}
 
         {/* Match End State */}
         {gamePhase === "matchEnd" && (() => {
-          // Use roundWinner as the match winner (the last round winner who reached winsNeeded)
           const finalWinnerId = matchWinnerId || roundWinner
           const finalWinnerPlayer = finalWinnerId ? activePlayers.find(p => p.id === finalWinnerId) : null
           
@@ -495,45 +473,28 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
                     {finalWinnerPlayer.username.slice(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <div className="text-left">
-                  <p className="text-2xl font-bold">{finalWinnerPlayer.username}</p>
-                  <p className="text-muted-foreground">
-                    {getPlayerWins(finalWinnerId)} - {Math.max(...playerIds.filter(id => id !== finalWinnerId).map(id => getPlayerWins(id)), 0)}
-                  </p>
-                </div>
+                <span className="text-2xl font-bold">{finalWinnerPlayer.username}</span>
               </div>
-              <Badge className="bg-amber-500 text-white text-lg px-4 py-1">
-                Champion!
-              </Badge>
+              
+              {/* Final Score */}
+              {totalRounds > 1 && (
+                <div className="mt-6 inline-flex items-center gap-4 px-6 py-3 rounded-xl bg-muted">
+                  {activePlayers.map((p, index) => (
+                    <div key={p.id} className="flex items-center gap-2">
+                      {index > 0 && <span className="text-2xl font-bold text-muted-foreground">-</span>}
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={p.avatar_url || undefined} />
+                        <AvatarFallback className="text-xs">{p.username.slice(0, 2).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <span className="text-xl font-bold">{gameState.playerWins[p.id] || 0}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )
         })()}
       </div>
-
-      {/* Bottom Status Bar */}
-      {gamePhase === "playing" && !isSpectator && (
-        <div className={`p-4 border-t border-border transition-colors ${
-          hasBomb 
-            ? dangerLevel === "critical" 
-              ? "bg-red-100" 
-              : "bg-amber-50"
-            : "bg-muted/30"
-        }`}>
-          <div className="text-center">
-            {hasBomb ? (
-              <p className={`font-semibold ${dangerLevel === "critical" ? "text-red-600 animate-pulse" : "text-amber-700"}`}>
-                {dangerLevel === "critical" ? "PASS IT NOW!" : "You have the bomb! Pass it quickly!"}
-              </p>
-            ) : isEliminated ? (
-              <p className="text-muted-foreground">You were eliminated this round</p>
-            ) : (
-              <p className="text-muted-foreground">
-                Safe for now... watch out!
-              </p>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

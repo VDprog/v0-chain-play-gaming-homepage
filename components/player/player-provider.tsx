@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from "
 import useSWR from "swr"
 import type { PlayerWithStats, CreatePlayerInput, TezosNetwork } from "@/lib/types/player"
 import { useTezosWallet } from "@/components/wallet/tezos-wallet-provider"
+import { PlayerRegistrationModal } from "@/components/modals/player-registration-modal"
 
 const fetcher = async (url: string) => {
   const res = await fetch(url)
@@ -20,6 +21,10 @@ interface PlayerContextValue {
   isConnected: boolean
   address: string | undefined
   network: TezosNetwork
+  /** True when the user needs to complete profile setup (wallet connected, but no player) */
+  needsRegistration: boolean
+  /** Open the registration modal */
+  openRegistrationModal: () => void
 }
 
 const PlayerContext = createContext<PlayerContextValue>({
@@ -31,10 +36,12 @@ const PlayerContext = createContext<PlayerContextValue>({
   isConnected: false,
   address: undefined,
   network: "ghostnet",
+  needsRegistration: false,
+  openRegistrationModal: () => {},
 })
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
-  const [isAutoCreating, setIsAutoCreating] = useState(false)
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false)
   
   // Tezos wallet state (only wallet type supported)
   const { 
@@ -59,41 +66,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   )
 
-  // Auto-create player if wallet is connected but no player exists
+  // Determine if user needs to register (wallet connected, data loaded, but no player)
+  const needsRegistration = isReady && isConnected && address && !isLoading && data?.player === null
+
+  // Auto-show registration modal when wallet is connected but no player exists
   useEffect(() => {
-    // Only auto-create after wallet restore is complete and we've confirmed no player exists
-    const shouldAutoCreate = isReady && isConnected && address && !isLoading && data?.player === null && !isAutoCreating
-    
-    if (shouldAutoCreate) {
-      setIsAutoCreating(true)
-      
-      // Generate a default username from the wallet address
-      const defaultUsername = `Player_${address.slice(-6)}`
-      
-      fetch("/api/player", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          wallet_address: address,
-          wallet_type: "tezos",
-          wallet_network: network,
-          username: defaultUsername,
-        }),
-      })
-        .then(async (res) => {
-          if (res.ok) {
-            const result = await res.json()
-            mutate({ player: result.player }, false)
-          }
-        })
-        .catch((err) => {
-          console.error("Auto-create player error:", err)
-        })
-        .finally(() => {
-          setIsAutoCreating(false)
-        })
+    if (needsRegistration && !showRegistrationModal) {
+      // Small delay to ensure smooth UX after wallet connection
+      const timer = setTimeout(() => {
+        setShowRegistrationModal(true)
+      }, 300)
+      return () => clearTimeout(timer)
     }
-  }, [isReady, isConnected, address, isLoading, data?.player, isAutoCreating, network, mutate])
+  }, [needsRegistration, showRegistrationModal])
+
+  // Close modal if wallet disconnects
+  useEffect(() => {
+    if (!isConnected && showRegistrationModal) {
+      setShowRegistrationModal(false)
+    }
+  }, [isConnected, showRegistrationModal])
 
   const createOrUpdatePlayer = async (input: Omit<CreatePlayerInput, "wallet_address" | "wallet_type">) => {
     if (!address) throw new Error("Wallet not connected")
@@ -122,11 +114,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return result
   }
 
+  const handleRegister = async (data: { username: string; avatar_url: string; wallet_network: string }) => {
+    await createOrUpdatePlayer({
+      username: data.username,
+      avatar_url: data.avatar_url,
+      wallet_network: data.wallet_network as TezosNetwork,
+    })
+    setShowRegistrationModal(false)
+  }
+
+  const openRegistrationModal = () => {
+    if (needsRegistration) {
+      setShowRegistrationModal(true)
+    }
+  }
+
   // isLoading is true during:
   // 1. Wallet restore in progress
   // 2. Player data fetch in progress (when connected)
-  // 3. Auto-creation in progress
-  const combinedLoading = isRestoring || (shouldFetchPlayer ? isLoading : false) || isAutoCreating
+  const combinedLoading = isRestoring || (shouldFetchPlayer ? isLoading : false)
 
   return (
     <PlayerContext.Provider
@@ -139,9 +145,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         isConnected,
         address: address || undefined,
         network,
+        needsRegistration: needsRegistration || false,
+        openRegistrationModal,
       }}
     >
       {children}
+      
+      {/* Registration Modal - shown when wallet is connected but no player profile exists */}
+      <PlayerRegistrationModal
+        open={showRegistrationModal}
+        onOpenChange={setShowRegistrationModal}
+        onRegister={handleRegister}
+      />
     </PlayerContext.Provider>
   )
 }
