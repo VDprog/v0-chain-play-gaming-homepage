@@ -43,7 +43,6 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
   // Track refs for host-side timer management
   const timerCheckRef = useRef<NodeJS.Timeout | null>(null)
   const roundEndTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const autoStartedRef = useRef(false)
   const roundEndScheduledRef = useRef<number>(0) // Track which round's end has been scheduled
   
   // Shared game state - synchronized across all players
@@ -93,22 +92,8 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
   // Get danger level for animations
   const dangerLevel = getDangerLevel(timeRemaining)
 
-  // HOST ONLY: Auto-start countdown when game first loads and state is "waiting"
-  // This handles the transition from lobby "Start Game" button to actual game start
-  useEffect(() => {
-    if (!isHost || !gameState || autoStartedRef.current) return
-    
-    // Only auto-start if we're in waiting state and this is round 1
-    // This means the host just pressed "Start Game" in the lobby
-    // Note: version >= 0 since initial state has version 0
-    if (gameState.matchStatus === "waiting" && gameState.currentRound === 1) {
-      autoStartedRef.current = true
-      // Small delay to ensure all state is synced
-      setTimeout(() => {
-        startCountdown()
-      }, 300)
-    }
-  }, [isHost, gameState?.matchStatus, gameState?.currentRound, startCountdown])
+  // Note: Auto-start is now handled by the start API which sets matchStatus to "countdown"
+  // The useGameState hook handles scheduling the transition to "playing" after countdown
 
   // HOST ONLY: Monitor timer and handle round completion
   useEffect(() => {
@@ -206,12 +191,6 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
       if (roundEndTimeoutRef.current) clearTimeout(roundEndTimeoutRef.current)
     }
   }, [])
-
-  // Handle start game button click
-  const handleStartGame = async () => {
-    if (isSpectator || !isHost) return
-    await startCountdown()
-  }
 
   // Handle passing the bomb
   const handlePassBomb = async (targetId: string) => {
@@ -318,30 +297,6 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
 
       {/* Main Game Area */}
       <div className="flex-1 flex items-center justify-center p-8">
-        {/* Waiting State */}
-        {gamePhase === "waiting" && (
-          <div className="text-center">
-            <div className="w-32 h-32 mx-auto mb-6 rounded-full bg-primary/10 flex items-center justify-center">
-              <Bomb className="h-16 w-16 text-primary" />
-            </div>
-            <h3 className="text-2xl font-bold mb-2">
-              {currentRound === 1 ? "Ready to Play?" : `Round ${currentRound}`}
-            </h3>
-            <p className="text-muted-foreground mb-6">
-              {activePlayers.length} players ready
-            </p>
-            {!isSpectator && isHost && (
-              <Button size="lg" onClick={handleStartGame} className="gap-2">
-                <Bomb className="h-5 w-5" />
-                Start Round
-              </Button>
-            )}
-            {!isSpectator && !isHost && (
-              <p className="text-muted-foreground">Waiting for host to start...</p>
-            )}
-          </div>
-        )}
-
         {/* Countdown State */}
         {gamePhase === "countdown" && (
           <div className="text-center">

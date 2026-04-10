@@ -73,12 +73,43 @@ export async function POST(
       )
     }
 
-    // Start the game - update room status to "starting"
+    // Get totalRounds from room settings (default to 1)
+    const totalRounds = (room.settings?.totalRounds as number) || 1
+    
+    // Create fresh game state - start directly in countdown (skip waiting)
+    const countdownEndsAt = Date.now() + 3000 // 3 second countdown
+    const playerIds = activePlayers.map(p => p.id)
+    const playerWins: Record<string, number> = {}
+    playerIds.forEach(id => { playerWins[id] = 0 })
+    
+    const freshGameState = {
+      matchStatus: "countdown", // Start directly in countdown - no waiting!
+      currentRound: 1,
+      totalRounds,
+      playerWins,
+      bombHolderId: null,
+      timerStartedAt: null,
+      timerDuration: 15,
+      eliminatedThisRound: [],
+      roundWinnerId: null,
+      roundLoserId: null,
+      matchWinnerId: null,
+      countdownEndsAt,
+      lastUpdatedBy: player_id,
+      lastUpdatedAt: Date.now(),
+      version: 1, // Start at version 1 so it's recognized as valid
+    }
+
+    // Start the game - update room status to "starting" and reset game state
     const { error: updateError } = await supabase
       .from("rooms")
       .update({ 
         status: "starting",
-        started_at: new Date().toISOString()
+        started_at: new Date().toISOString(),
+        settings: {
+          totalRounds,
+          gameState: freshGameState,
+        },
       })
       .eq("id", roomId)
 

@@ -153,8 +153,39 @@ export function useGameState({
         
         if (savedState && savedState.version > 0) {
           setGameState(savedState)
+          
+          // If state is already in countdown (set by start API), host schedules transition to playing
+          if (isHost && savedState.matchStatus === "countdown" && savedState.countdownEndsAt) {
+            const timeUntilPlaying = Math.max(0, savedState.countdownEndsAt - Date.now())
+            
+            // Clear any existing timeout
+            if (countdownTimeoutRef.current) {
+              clearTimeout(countdownTimeoutRef.current)
+            }
+            
+            countdownTimeoutRef.current = setTimeout(async () => {
+              // Pick random bomb holder
+              const randomHolder = playerIds[Math.floor(Math.random() * playerIds.length)]
+              
+              // Update to playing state
+              const playingState: SharedGameState = {
+                ...savedState,
+                matchStatus: "playing",
+                bombHolderId: randomHolder,
+                timerStartedAt: Date.now(),
+                timerDuration: INITIAL_TIMER_DURATION,
+                countdownEndsAt: null,
+                lastUpdatedBy: playerId,
+                lastUpdatedAt: Date.now(),
+                version: savedState.version + 1,
+              }
+              
+              setGameState(playingState)
+              await saveGameStateDirect(playingState)
+            }, timeUntilPlaying)
+          }
         } else {
-          // Initialize new game state
+          // Initialize new game state (fallback - start API normally sets this)
           const initialState = createInitialGameState(totalRounds, playerIds)
           setGameState(initialState)
           
