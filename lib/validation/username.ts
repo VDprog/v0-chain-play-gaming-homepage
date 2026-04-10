@@ -5,6 +5,13 @@ export const USERNAME_MIN_LENGTH = 3
 export const USERNAME_MAX_LENGTH = 20
 export const USERNAME_REGEX = /^[A-Za-z0-9_]+$/
 
+// Rules displayed to users in the UI
+export const USERNAME_RULES = [
+  `${USERNAME_MIN_LENGTH}-${USERNAME_MAX_LENGTH} characters`,
+  "Letters, numbers, and underscores only",
+  "Case-insensitive (e.g., 'Player' and 'player' are the same)",
+]
+
 export interface UsernameValidationResult {
   isValid: boolean
   error: string | null
