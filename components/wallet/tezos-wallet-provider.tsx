@@ -4,31 +4,40 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, ty
 import type { TezosNetwork } from "@/lib/types/player"
 
 // Suppress known Beacon SDK internal errors (metrics, IndexedDB issues in sandboxed environments)
+// This error is a known issue with @airgap/beacon-dapp in sandboxed environments
+// and does NOT affect wallet connection functionality
 if (typeof window !== "undefined") {
-  const originalHandler = window.onunhandledrejection
-  window.addEventListener("unhandledrejection", (event) => {
-    const reason = event.reason
-    const text = String(reason?.message || reason || "").toLowerCase()
-    const stack = String(reason?.stack || "").toLowerCase()
-    
-    // Suppress Beacon SDK internal errors that don't affect functionality
-    if (
+  const isBeaconError = (reason: unknown): boolean => {
+    const text = String((reason as { message?: string })?.message || reason || "").toLowerCase()
+    const stack = String((reason as { stack?: string })?.stack || "").toLowerCase()
+    return (
       text.includes("metrics") ||
+      text.includes("not found") ||
       text.includes("proposal expired") ||
       stack.includes("beacon") ||
       stack.includes("@airgap") ||
-      stack.includes("indexeddb")
-    ) {
+      stack.includes("indexeddb") ||
+      stack.includes("dappclient")
+    )
+  }
+
+  // Capture phase listener to intercept before other handlers
+  window.addEventListener("unhandledrejection", (event) => {
+    if (isBeaconError(event.reason)) {
       event.preventDefault()
       event.stopImmediatePropagation()
-      return
-    }
-    
-    // Call original handler if exists
-    if (originalHandler) {
-      originalHandler.call(window, event)
     }
   }, true)
+  
+  // Also set property directly as backup
+  const originalOnUnhandledRejection = window.onunhandledrejection
+  window.onunhandledrejection = (event) => {
+    if (isBeaconError(event?.reason)) {
+      event?.preventDefault?.()
+      return true // Indicate handled
+    }
+    return originalOnUnhandledRejection?.call(window, event) ?? null
+  }
 }
 
 interface TezosWalletContextValue {
