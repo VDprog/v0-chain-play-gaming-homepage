@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useAccount, useChainId } from "wagmi"
 import {
   Dialog,
   DialogContent,
@@ -15,18 +14,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Spinner } from "@/components/ui/spinner"
 import { User, Sparkles, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
-import { useWalletReady } from "@/components/wallet/wallet-provider"
+import { useTezosWallet } from "@/hooks/use-tezos-wallet"
 
 interface PlayerRegistrationModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onRegister: (data: { username: string; avatar_url: string; wallet_chain: string }) => Promise<void>
-}
-
-const chainNames: Record<number, string> = {
-  1: "Ethereum",
-  137: "Polygon",
-  11155111: "Sepolia",
+  onRegister: (data: { username: string; avatar_url: string; wallet_network: string }) => Promise<void>
 }
 
 export function PlayerRegistrationModal({ 
@@ -34,16 +27,14 @@ export function PlayerRegistrationModal({
   onOpenChange, 
   onRegister 
 }: PlayerRegistrationModalProps) {
-  const walletReady = useWalletReady()
-  const { address } = useAccount()
-  const chainId = useChainId()
+  const { address, network } = useTezosWallet()
   
   const [username, setUsername] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [avatarSeed, setAvatarSeed] = useState(() => address || Math.random().toString())
 
   const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}`
-  const chainName = walletReady ? (chainNames[chainId] || `Chain ${chainId}`) : "Unknown"
+  const networkName = network === "mainnet" ? "Tezos Mainnet" : "Tezos Ghostnet"
 
   const handleRandomizeAvatar = () => {
     setAvatarSeed(Math.random().toString(36).substring(7))
@@ -72,7 +63,7 @@ export function PlayerRegistrationModal({
       await onRegister({
         username: username.trim(),
         avatar_url: avatarUrl,
-        wallet_chain: chainName,
+        wallet_network: network,
       })
       toast.success("Welcome to ChainPlay!", {
         description: `Your profile has been created, ${username}!`,
@@ -146,11 +137,11 @@ export function PlayerRegistrationModal({
 
           {/* Wallet Info */}
           <div className="p-3 rounded-lg bg-muted/50 border border-border">
-            <p className="text-xs text-muted-foreground mb-1">Connected Wallet</p>
+            <p className="text-xs text-muted-foreground mb-1">Connected Tezos Wallet</p>
             <p className="font-mono text-sm text-foreground">
-              {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "Not connected"}
+              {address ? `${address.slice(0, 8)}...${address.slice(-4)}` : "Not connected"}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">{chainName}</p>
+            <p className="text-xs text-muted-foreground mt-1">{networkName}</p>
           </div>
 
           {/* Submit Button */}

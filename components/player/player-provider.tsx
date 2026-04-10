@@ -1,10 +1,9 @@
 "use client"
 
-import { createContext, useContext, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import useSWR from "swr"
-import { useAccount } from "wagmi"
-import type { PlayerWithStats, CreatePlayerInput } from "@/lib/types/player"
-import { useWalletReady } from "@/components/wallet/wallet-provider"
+import type { PlayerWithStats, CreatePlayerInput, TezosNetwork } from "@/lib/types/player"
+import { useTezosWallet } from "@/components/wallet/tezos-wallet-provider"
 
 const fetcher = async (url: string) => {
   const res = await fetch(url)
@@ -16,10 +15,11 @@ interface PlayerContextValue {
   player: PlayerWithStats | null
   isLoading: boolean
   error: Error | null
-  createOrUpdatePlayer: (input: Omit<CreatePlayerInput, "wallet_address">) => Promise<{ player: PlayerWithStats }>
+  createOrUpdatePlayer: (input: Omit<CreatePlayerInput, "wallet_address" | "wallet_type">) => Promise<{ player: PlayerWithStats }>
   refetch: () => Promise<unknown>
   isConnected: boolean
   address: string | undefined
+  network: TezosNetwork
 }
 
 const PlayerContext = createContext<PlayerContextValue>({
@@ -30,15 +30,27 @@ const PlayerContext = createContext<PlayerContextValue>({
   refetch: () => Promise.resolve(undefined),
   isConnected: false,
   address: undefined,
+  network: "ghostnet",
 })
 
-// Inner component that uses wagmi hooks - only rendered when wallet is ready
-function PlayerProviderInner({ children }: { children: ReactNode }) {
-  const { address, isConnected } = useAccount()
+export function PlayerProvider({ children }: { children: ReactNode }) {
+  const [isAutoCreating, setIsAutoCreating] = useState(false)
+  
+  // Tezos wallet state (only wallet type supported)
+  const { 
+    address, 
+    isConnected,
+    isRestoring,
+    isReady,
+    network 
+  } = useTezosWallet()
+
+  // Only start fetching player data after wallet restore is complete AND connected
+  const shouldFetchPlayer = isReady && isConnected && address
 
   const { data, error, isLoading, mutate } = useSWR<{ player: PlayerWithStats | null }>(
-    isConnected && address 
-      ? `/api/player?wallet=${address}` 
+    shouldFetchPlayer
+      ? `/api/player?wallet=${address}&wallet_type=tezos` 
       : null,
     fetcher,
     {
@@ -47,7 +59,43 @@ function PlayerProviderInner({ children }: { children: ReactNode }) {
     }
   )
 
-  const createOrUpdatePlayer = async (input: Omit<CreatePlayerInput, "wallet_address">) => {
+  // Auto-create player if wallet is connected but no player exists
+  useEffect(() => {
+    // Only auto-create after wallet restore is complete and we've confirmed no player exists
+    const shouldAutoCreate = isReady && isConnected && address && !isLoading && data?.player === null && !isAutoCreating
+    
+    if (shouldAutoCreate) {
+      setIsAutoCreating(true)
+      
+      // Generate a default username from the wallet address
+      const defaultUsername = `Player_${address.slice(-6)}`
+      
+      fetch("/api/player", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wallet_address: address,
+          wallet_type: "tezos",
+          wallet_network: network,
+          username: defaultUsername,
+        }),
+      })
+        .then(async (res) => {
+          if (res.ok) {
+            const result = await res.json()
+            mutate({ player: result.player }, false)
+          }
+        })
+        .catch((err) => {
+          console.error("Auto-create player error:", err)
+        })
+        .finally(() => {
+          setIsAutoCreating(false)
+        })
+    }
+  }, [isReady, isConnected, address, isLoading, data?.player, isAutoCreating, network, mutate])
+
+  const createOrUpdatePlayer = async (input: Omit<CreatePlayerInput, "wallet_address" | "wallet_type">) => {
     if (!address) throw new Error("Wallet not connected")
 
     const response = await fetch("/api/player", {
@@ -55,6 +103,8 @@ function PlayerProviderInner({ children }: { children: ReactNode }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         wallet_address: address,
+        wallet_type: "tezos",
+        wallet_network: network,
         ...input,
       }),
     })
@@ -72,48 +122,28 @@ function PlayerProviderInner({ children }: { children: ReactNode }) {
     return result
   }
 
+  // isLoading is true during:
+  // 1. Wallet restore in progress
+  // 2. Player data fetch in progress (when connected)
+  // 3. Auto-creation in progress
+  const combinedLoading = isRestoring || (shouldFetchPlayer ? isLoading : false) || isAutoCreating
+
   return (
     <PlayerContext.Provider
       value={{
         player: data?.player || null,
-        isLoading: isConnected && address ? isLoading : false,
+        isLoading: combinedLoading,
         error: error || null,
         createOrUpdatePlayer,
         refetch: mutate,
         isConnected,
-        address,
+        address: address || undefined,
+        network,
       }}
     >
       {children}
     </PlayerContext.Provider>
   )
-}
-
-// Main provider that conditionally renders the inner provider
-export function PlayerProvider({ children }: { children: ReactNode }) {
-  const walletReady = useWalletReady()
-
-  // When wallet isn't ready, provide default context values
-  if (!walletReady) {
-    return (
-      <PlayerContext.Provider
-        value={{
-          player: null,
-          isLoading: false,
-          error: null,
-          createOrUpdatePlayer: async () => { throw new Error("Wallet not ready") },
-          refetch: () => Promise.resolve(undefined),
-          isConnected: false,
-          address: undefined,
-        }}
-      >
-        {children}
-      </PlayerContext.Provider>
-    )
-  }
-
-  // When wallet is ready, use the inner provider that accesses wagmi
-  return <PlayerProviderInner>{children}</PlayerProviderInner>
 }
 
 export function usePlayer() {

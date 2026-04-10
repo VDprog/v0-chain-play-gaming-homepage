@@ -42,7 +42,7 @@ const statusLabels: Record<string, string> = {
 
 export function RoomContent({ initialRoom, game, isSpectator = false }: RoomContentProps) {
   const router = useRouter()
-  const { player, isConnected } = usePlayer()
+  const { player, isConnected, isLoading: playerLoading } = usePlayer()
   const { room, isLoading, joinRoom, leaveRoom, setReady, startGame } = useRoom(initialRoom.id)
   
   const [isJoining, setIsJoining] = useState(false)
@@ -60,16 +60,31 @@ export function RoomContent({ initialRoom, game, isSpectator = false }: RoomCont
   const isReady = currentPlayerInRoom?.is_ready || false
 
   // Auto-join as spectator if URL has spectate param
+  // Wait for player loading to complete before attempting auto-join
   useEffect(() => {
-    if (isSpectator && isConnected && player && !isInRoom && currentRoom.status === "live") {
+    if (isSpectator && !playerLoading && isConnected && player && !isInRoom && currentRoom.status === "live") {
       handleJoinAsSpectator()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSpectator, isConnected, player?.id, isInRoom])
+  }, [isSpectator, playerLoading, isConnected, player?.id, isInRoom])
 
   const handleJoin = async () => {
+    if (playerLoading) {
+      toast.error("Please wait", {
+        description: "Loading your profile...",
+      })
+      return
+    }
+    
     if (!player) {
-      toast.error("Please create a profile first")
+      toast.error("Please connect your Tezos wallet first")
+      return
+    }
+    
+    if (!player.id) {
+      toast.error("Player profile incomplete", {
+        description: "Please refresh and try again.",
+      })
       return
     }
     
@@ -206,6 +221,7 @@ export function RoomContent({ initialRoom, game, isSpectator = false }: RoomCont
           room={currentRoom}
           game={game}
           player={player}
+          playerLoading={playerLoading}
           isInRoom={isInRoom}
           isHost={isHost}
           isReady={isReady}

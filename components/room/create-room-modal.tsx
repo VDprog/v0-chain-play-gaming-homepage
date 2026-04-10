@@ -27,7 +27,7 @@ interface CreateRoomModalProps {
 
 export function CreateRoomModal({ open, onOpenChange, gameSlug, gameTitle }: CreateRoomModalProps) {
   const router = useRouter()
-  const { player, isConnected } = usePlayer()
+  const { player, isConnected, isLoading: playerLoading, address } = usePlayer()
   const { createRoom } = useRooms(gameSlug)
   
   const [name, setName] = useState("")
@@ -38,14 +38,30 @@ export function CreateRoomModal({ open, onOpenChange, gameSlug, gameTitle }: Cre
   const [isCreating, setIsCreating] = useState(false)
 
   const handleCreate = async () => {
+    // Wait for player to be fully loaded
+    if (playerLoading) {
+      toast.error("Please wait", {
+        description: "Your profile is still loading...",
+      })
+      return
+    }
+    
     if (!player) {
-      toast.error("Please register first", {
-        description: "You need to create a profile to host a room",
+      toast.error("Player not found", {
+        description: "Could not find your player profile. Please try reconnecting your wallet.",
+      })
+      return
+    }
+    
+    if (!player.id) {
+      toast.error("Invalid player state", {
+        description: "Player ID is missing. Please refresh and try again.",
       })
       return
     }
 
     setIsCreating(true)
+    
     try {
       const room = await createRoom({
         game_slug: gameSlug,
@@ -71,20 +87,34 @@ export function CreateRoomModal({ open, onOpenChange, gameSlug, gameTitle }: Cre
       setIsCreating(false)
     }
   }
+  
+  // Determine button disabled state and reason
+  const isButtonDisabled = isCreating || playerLoading || !player || !player.id
+  const disabledReason = isCreating 
+    ? "Creating..." 
+    : playerLoading 
+      ? "Restoring wallet session..." 
+      : !player 
+        ? "Player profile not found" 
+        : !player.id
+          ? "Player ID missing"
+          : null
 
-  if (!isConnected) {
+  // Show connect wallet message only after loading is complete and not connected
+  // During loading, we show the main modal with loading state instead
+  if (!playerLoading && !isConnected) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Connect Wallet</DialogTitle>
+            <DialogTitle>Connect Tezos Wallet</DialogTitle>
             <DialogDescription>
-              Connect your wallet to create and join rooms.
+              Connect your Tezos wallet to create and join rooms.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-center py-6">
             <p className="text-muted-foreground text-center">
-              Please connect your wallet using the button in the header.
+              Please connect your Tezos wallet using the button in the header.
             </p>
           </div>
         </DialogContent>
@@ -209,32 +239,46 @@ export function CreateRoomModal({ open, onOpenChange, gameSlug, gameTitle }: Cre
           </div>
         </div>
 
-        <div className="flex gap-3">
-          <Button 
-            variant="outline" 
-            onClick={() => onOpenChange(false)} 
-            className="flex-1"
-            disabled={isCreating}
-          >
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleCreate} 
-            className="flex-1 gap-2"
-            disabled={isCreating || !player}
-          >
-            {isCreating ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Creating...
-              </>
-            ) : (
-              <>
-                <Plus className="h-4 w-4" />
-                Create Room
-              </>
-            )}
-          </Button>
+        <div className="flex flex-col gap-3">
+          {/* Show reason if button is disabled */}
+          {disabledReason && !isCreating && (
+            <p className="text-sm text-amber-600 text-center">
+              {disabledReason}
+            </p>
+          )}
+          
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => onOpenChange(false)} 
+              className="flex-1"
+              disabled={isCreating}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreate} 
+              className="flex-1 gap-2"
+              disabled={isButtonDisabled}
+            >
+              {isCreating ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : playerLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4" />
+                  Create Room
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

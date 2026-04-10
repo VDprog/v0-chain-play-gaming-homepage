@@ -39,8 +39,14 @@ const sortOptions: { label: string; value: SortOption }[] = [
   { label: "Almost Full", value: "players" },
 ]
 
+const networkOptions = [
+  { label: "All Networks", value: null },
+  { label: "Ghostnet", value: "ghostnet" },
+  { label: "Mainnet", value: "mainnet" },
+]
+
 export function LiveFilters() {
-  const { gameFilter, statusFilter, sort, setGameFilter, setStatusFilter, setSort } = useLiveContext()
+  const { gameFilter, statusFilter, networkFilter, sort, setGameFilter, setStatusFilter, setNetworkFilter, setSort } = useLiveContext()
   const [showSort, setShowSort] = useState(false)
 
   return (
@@ -95,6 +101,27 @@ export function LiveFilters() {
                   className={`inline-flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200 ${
                     isActive
                       ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/30"
+                      : "bg-muted/50 text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              )
+            })}
+
+            {/* Divider */}
+            <div className="h-6 w-px bg-border mx-1" />
+
+            {/* Network filters (Tezos) */}
+            {networkOptions.map((filter) => {
+              const isActive = networkFilter === filter.value
+              return (
+                <button
+                  key={filter.value || "all-network"}
+                  onClick={() => setNetworkFilter(filter.value)}
+                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200 ${
+                    isActive
+                      ? "bg-blue-500/10 text-blue-600 border border-blue-500/30"
                       : "bg-muted/50 text-muted-foreground hover:bg-muted/80 hover:text-foreground"
                   }`}
                 >

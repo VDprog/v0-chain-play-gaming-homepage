@@ -178,13 +178,26 @@ export async function DELETE(
     }
   }
 
-  // Check if room should be expired (no active players left)
+  // Check if room should be expired/cleaned up
   const activePlayersRemaining = players.filter(p => p.id !== playerId && p.role !== "spectator").length
-  if (activePlayersRemaining === 0 && room.status === "waiting") {
-    await supabase
-      .from("rooms")
-      .update({ status: "expired" })
-      .eq("id", roomId)
+  
+  if (activePlayersRemaining === 0) {
+    // No active players left
+    if (room.status === "waiting") {
+      // Waiting room with no players -> expire it
+      await supabase
+        .from("rooms")
+        .update({ status: "expired" })
+        .eq("id", roomId)
+    } else if (room.status === "finished") {
+      // Finished room with no players -> clean up by deleting room_players
+      // The room record can stay for history, but mark all players as left
+      await supabase
+        .from("room_players")
+        .update({ left_at: new Date().toISOString(), status: "left" })
+        .eq("room_id", roomId)
+        .is("left_at", null)
+    }
   }
 
   return NextResponse.json({ success: true })

@@ -2,13 +2,19 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import type { CreatePlayerInput } from "@/lib/types/player"
 
-// GET /api/player?wallet=0x123...
+// GET /api/player?wallet=tz1...&wallet_type=tezos
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const walletAddress = searchParams.get("wallet")
+  const walletType = searchParams.get("wallet_type") || "tezos"
 
   if (!walletAddress) {
     return NextResponse.json({ error: "Wallet address required" }, { status: 400 })
+  }
+
+  // Validate Tezos address format
+  if (!walletAddress.startsWith("tz")) {
+    return NextResponse.json({ error: "Invalid Tezos address format" }, { status: 400 })
   }
 
   const supabase = await createClient()
@@ -19,7 +25,8 @@ export async function GET(request: NextRequest) {
       *,
       stats:player_stats(*)
     `)
-    .eq("wallet_address", walletAddress.toLowerCase())
+    .eq("wallet_address", walletAddress)
+    .eq("wallet_type", walletType)
     .single()
 
   if (error && error.code !== "PGRST116") {
@@ -50,14 +57,27 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = await createClient()
-    const walletAddress = body.wallet_address.toLowerCase()
+    // Validate Tezos address format
+    if (!body.wallet_address.startsWith("tz")) {
+      return NextResponse.json(
+        { error: "Invalid Tezos address format. Address must start with 'tz'" },
+        { status: 400 }
+      )
+    }
 
-    // Check if player exists
+    const supabase = await createClient()
+    
+    // Tezos addresses are case-sensitive, don't lowercase
+    const walletAddress = body.wallet_address
+    const walletType = body.wallet_type || "tezos"
+    const walletNetwork = body.wallet_network || "ghostnet"
+
+    // Check if player exists with this wallet
     const { data: existingPlayer } = await supabase
       .from("players")
       .select("id")
       .eq("wallet_address", walletAddress)
+      .eq("wallet_type", walletType)
       .single()
 
     if (existingPlayer) {
@@ -66,10 +86,11 @@ export async function POST(request: NextRequest) {
         .from("players")
         .update({
           username: body.username,
-          wallet_chain: body.wallet_chain,
+          wallet_network: walletNetwork,
           avatar_url: body.avatar_url,
         })
         .eq("wallet_address", walletAddress)
+        .eq("wallet_type", walletType)
         .select(`
           *,
           stats:player_stats(*)
@@ -94,7 +115,8 @@ export async function POST(request: NextRequest) {
       .from("players")
       .insert({
         wallet_address: walletAddress,
-        wallet_chain: body.wallet_chain,
+        wallet_type: walletType,
+        wallet_network: walletNetwork,
         username: body.username,
         avatar_url: body.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${walletAddress}`,
       })

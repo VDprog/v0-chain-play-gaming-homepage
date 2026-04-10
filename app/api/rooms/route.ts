@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
   
   const gameSlug = searchParams.get("game")
   const status = searchParams.get("status")
+  const network = searchParams.get("network")
   const limit = parseInt(searchParams.get("limit") || "20")
 
   // First, expire any old waiting rooms (15 minutes without starting)
@@ -28,6 +29,10 @@ export async function GET(request: NextRequest) {
 
   if (gameSlug) {
     query = query.eq("game_slug", gameSlug)
+  }
+
+  if (network) {
+    query = query.eq("network", network)
   }
 
   if (status) {
@@ -61,6 +66,20 @@ export async function POST(request: NextRequest) {
     if (!body.created_by) {
       return NextResponse.json({ error: "created_by (player_id) is required" }, { status: 400 })
     }
+    
+    // Verify the player exists (must be a Tezos player)
+    const { data: player, error: playerCheckError } = await supabase
+      .from("players")
+      .select("id, username, wallet_type, wallet_network")
+      .eq("id", body.created_by)
+      .single()
+    
+    if (playerCheckError || !player) {
+      return NextResponse.json({ error: "Player not found. Please reconnect your Tezos wallet." }, { status: 404 })
+    }
+
+    // Get creator's network for room filtering (default to ghostnet)
+    const creatorNetwork = player.wallet_network || "ghostnet"
 
     // Create the room
     const { data: room, error: roomError } = await supabase
@@ -73,6 +92,7 @@ export async function POST(request: NextRequest) {
         stakes: body.stakes || 0,
         settings: body.settings || {},
         created_by: body.created_by,
+        network: creatorNetwork,
       })
       .select()
       .single()
