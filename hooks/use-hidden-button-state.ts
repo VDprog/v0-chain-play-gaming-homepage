@@ -328,27 +328,27 @@ export function useHiddenButtonState({
     
     roundEndTimeoutRef.current = setTimeout(async () => {
       if (matchIsOver && winnerId) {
-        // Match is over
-        setGameState(prev => {
-          if (!prev) return prev
-          const newState: HiddenButtonState = {
-            ...prev,
-            matchStatus: "matchEnd",
-            matchWinnerId: winnerId,
-            lastUpdatedBy: playerId,
-            lastUpdatedAt: Date.now(),
-            version: prev.version + 1,
-          }
-          saveGameState(newState)
-          
-          // Update room status
-          supabaseRef.current
-            .from("rooms")
-            .update({ status: "finished", finished_at: new Date().toISOString() })
-            .eq("id", roomId)
-          
-          return newState
-        })
+        // Match is over - update game state
+        const matchEndState: HiddenButtonState = {
+          ...gameState,
+          matchStatus: "matchEnd",
+          matchWinnerId: winnerId,
+          lastUpdatedBy: playerId,
+          lastUpdatedAt: Date.now(),
+          version: gameState.version + 1,
+        }
+        
+        setGameState(matchEndState)
+        await saveGameState(matchEndState)
+        
+        // Update room status to finished (critical for room lifecycle)
+        await supabaseRef.current
+          .from("rooms")
+          .update({ 
+            status: "finished", 
+            finished_at: new Date().toISOString() 
+          })
+          .eq("id", roomId)
       } else {
         // Start next round
         const countdownEndsAt = Date.now() + (COUNTDOWN_DURATION * 1000)
