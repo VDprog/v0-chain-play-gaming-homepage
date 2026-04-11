@@ -2,7 +2,7 @@
 
 import useSWR from "swr"
 import type { RoomWithPlayers } from "@/lib/types/room"
-import { ROOM_TIMEOUTS } from "@/lib/room-lifecycle"
+import { ROOM_TIMEOUTS } from "@/lib/room-lifecycle-utils"
 
 const fetcher = async (url: string) => {
   const res = await fetch(url)
