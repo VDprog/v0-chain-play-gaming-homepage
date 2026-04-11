@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import type { CreateRoomInput } from "@/lib/types/room"
-import { ROOM_EXPIRATION } from "@/lib/room-lifecycle"
+import { ROOM_EXPIRATION_MS } from "@/lib/types/room"
 
 // GET /api/rooms - List rooms (optionally filtered by game_slug)
 export async function GET(request: NextRequest) {
@@ -13,40 +13,13 @@ export async function GET(request: NextRequest) {
   const network = searchParams.get("network")
   const limit = parseInt(searchParams.get("limit") || "20")
 
-  // Expire stale rooms based on status-specific timeouts
-  const now = Date.now()
-  
-  // Waiting rooms: 15 minutes from creation
-  const waitingExpiration = new Date(now - ROOM_EXPIRATION.WAITING_MS).toISOString()
+  // First, expire any old waiting rooms (15 minutes without starting)
+  const expirationTime = new Date(Date.now() - ROOM_EXPIRATION_MS).toISOString()
   await supabase
     .from("rooms")
     .update({ status: "expired" })
     .eq("status", "waiting")
-    .lt("created_at", waitingExpiration)
-  
-  // Starting rooms: 2 minutes (stuck in starting state)
-  const startingExpiration = new Date(now - ROOM_EXPIRATION.STARTING_MS).toISOString()
-  await supabase
-    .from("rooms")
-    .update({ status: "expired" })
-    .eq("status", "starting")
-    .lt("updated_at", startingExpiration)
-  
-  // Live rooms: 30 minutes without activity
-  const liveExpiration = new Date(now - ROOM_EXPIRATION.LIVE_MS).toISOString()
-  await supabase
-    .from("rooms")
-    .update({ status: "expired" })
-    .eq("status", "live")
-    .lt("updated_at", liveExpiration)
-  
-  // Finished rooms: 5 minutes after completion (cleanup)
-  const finishedExpiration = new Date(now - ROOM_EXPIRATION.FINISHED_MS).toISOString()
-  await supabase
-    .from("rooms")
-    .update({ status: "expired" })
-    .eq("status", "finished")
-    .lt("finished_at", finishedExpiration)
+    .lt("created_at", expirationTime)
 
   let query = supabase
     .from("rooms_with_players")

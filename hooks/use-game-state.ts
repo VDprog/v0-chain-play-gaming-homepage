@@ -115,7 +115,7 @@ export function useGameState({
   // Save game state to database and broadcast (defined early for use in init)
   const saveGameStateDirect = useCallback(async (newState: SharedGameState) => {
     try {
-      // Save to database (also touches updated_at for room lifecycle tracking)
+      // Save to database
       await supabaseRef.current
         .from("rooms")
         .update({
@@ -123,7 +123,6 @@ export function useGameState({
             totalRounds: newState.totalRounds,
             gameState: newState,
           },
-          updated_at: new Date().toISOString(),
         })
         .eq("id", roomId)
       

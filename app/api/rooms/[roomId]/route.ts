@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { ROOM_EXPIRATION } from "@/lib/room-lifecycle"
+import { ROOM_EXPIRATION_MS } from "@/lib/types/room"
 
 // GET /api/rooms/[roomId] - Get a specific room
 export async function GET(
@@ -20,36 +20,21 @@ export async function GET(
     return NextResponse.json({ error: "Room not found" }, { status: 404 })
   }
 
-  // Check if the room should be expired based on status-specific timeouts
-  const now = Date.now()
-  const activityTime = new Date(data.updated_at || data.created_at).getTime()
-  const age = now - activityTime
-  
-  let shouldExpire = false
-  
-  if (data.status === "waiting" && age > ROOM_EXPIRATION.WAITING_MS) {
-    shouldExpire = true
-  } else if (data.status === "starting" && age > ROOM_EXPIRATION.STARTING_MS) {
-    shouldExpire = true
-  } else if (data.status === "live" && age > ROOM_EXPIRATION.LIVE_MS) {
-    shouldExpire = true
-  } else if (data.status === "finished") {
-    const finishedAge = data.finished_at ? now - new Date(data.finished_at).getTime() : age
-    if (finishedAge > ROOM_EXPIRATION.FINISHED_MS) {
-      shouldExpire = true
+  // Check if the room should be expired (waiting rooms older than 15 minutes)
+  if (data.status === "waiting") {
+    const roomAge = Date.now() - new Date(data.created_at).getTime()
+    if (roomAge > ROOM_EXPIRATION_MS) {
+      // Mark as expired
+      await supabase
+        .from("rooms")
+        .update({ status: "expired" })
+        .eq("id", roomId)
+      
+      return NextResponse.json({ 
+        room: { ...data, status: "expired" },
+        expired: true
+      })
     }
-  }
-  
-  if (shouldExpire) {
-    await supabase
-      .from("rooms")
-      .update({ status: "expired" })
-      .eq("id", roomId)
-    
-    return NextResponse.json({ 
-      room: { ...data, status: "expired" },
-      expired: true
-    })
   }
 
   return NextResponse.json({ room: data })

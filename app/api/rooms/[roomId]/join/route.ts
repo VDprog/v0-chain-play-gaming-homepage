@@ -93,12 +93,6 @@ export async function POST(
       }
     }
 
-    // Touch room activity timestamp
-    await supabase
-      .from("rooms")
-      .update({ updated_at: new Date().toISOString() })
-      .eq("id", roomId)
-
     // Fetch updated room
     const { data: updatedRoom } = await supabase
       .from("rooms_with_players")

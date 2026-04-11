@@ -2,7 +2,6 @@
 
 import useSWR from "swr"
 import type { RoomWithPlayers } from "@/lib/types/room"
-import { ROOM_EXPIRATION } from "@/lib/room-lifecycle"
 
 const fetcher = async (url: string) => {
   const res = await fetch(url)
@@ -51,22 +50,12 @@ export function useLiveRooms(options: UseLiveRoomsOptions = {}) {
     }
   )
 
-  // Filter out invalid/orphaned/expired rooms
-  const now = Date.now()
+  // Filter out invalid/orphaned rooms and sort
   const validRooms = data?.rooms?.filter(room => {
     // Exclude rooms without players (orphaned)
     if (room.player_count === 0) return false
     // Exclude rooms with invalid status
     if (!["waiting", "starting", "live"].includes(room.status)) return false
-    
-    // Client-side expiration check (backup in case server didn't expire yet)
-    const activityTime = new Date(room.updated_at || room.created_at).getTime()
-    const age = now - activityTime
-    
-    if (room.status === "waiting" && age > ROOM_EXPIRATION.WAITING_MS) return false
-    if (room.status === "starting" && age > ROOM_EXPIRATION.STARTING_MS) return false
-    if (room.status === "live" && age > ROOM_EXPIRATION.LIVE_MS) return false
-    
     return true
   }) || []
   

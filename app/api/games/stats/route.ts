@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import { ROOM_EXPIRATION } from "@/lib/room-lifecycle"
+import { ROOM_EXPIRATION_MS } from "@/lib/types/room"
 
 export interface GameStats {
   game_slug: string
@@ -14,32 +14,13 @@ export interface GameStats {
 export async function GET() {
   const supabase = await createClient()
 
-  // Expire stale rooms based on status-specific timeouts
-  const now = Date.now()
-  
-  // Waiting rooms: 15 minutes from creation
-  const waitingExpiration = new Date(now - ROOM_EXPIRATION.WAITING_MS).toISOString()
+  // First, expire any old waiting rooms (15 minutes without starting)
+  const expirationTime = new Date(Date.now() - ROOM_EXPIRATION_MS).toISOString()
   await supabase
     .from("rooms")
     .update({ status: "expired" })
     .eq("status", "waiting")
-    .lt("created_at", waitingExpiration)
-  
-  // Starting rooms: 2 minutes (stuck in starting state)
-  const startingExpiration = new Date(now - ROOM_EXPIRATION.STARTING_MS).toISOString()
-  await supabase
-    .from("rooms")
-    .update({ status: "expired" })
-    .eq("status", "starting")
-    .lt("updated_at", startingExpiration)
-  
-  // Live rooms: 30 minutes without activity
-  const liveExpiration = new Date(now - ROOM_EXPIRATION.LIVE_MS).toISOString()
-  await supabase
-    .from("rooms")
-    .update({ status: "expired" })
-    .eq("status", "live")
-    .lt("updated_at", liveExpiration)
+    .lt("created_at", expirationTime)
 
   // Fetch all active rooms with player counts
   const { data: rooms, error } = await supabase
