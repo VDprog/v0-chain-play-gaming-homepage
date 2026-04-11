@@ -52,6 +52,7 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
     error,
     startCountdown,
     passBomb,
+    continueRound,
     endRound,
     startNextRound,
     endMatch,
@@ -133,12 +134,17 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
         const stillAlive = activePlayers.filter(p => !newEliminated.includes(p.id))
         
         if (stillAlive.length === 1) {
-          // Round winner determined
+          // Only one player remains - they win the round
           const winnerId = stillAlive[0].id
           endRound(winnerId, loserId)
+        } else if (stillAlive.length > 1) {
+          // Multiple players remain - continue round with new bomb holder
+          // Pick random bomb holder from remaining alive players (excluding the eliminated one)
+          const randomIndex = Math.floor(Math.random() * stillAlive.length)
+          const newBombHolder = stillAlive[randomIndex].id
+          continueRound(loserId, newBombHolder)
         }
-        // If more than 1 player remaining, continue with next bomb holder
-        // This would need additional logic for multi-player games
+        // If stillAlive.length === 0, something went wrong - do nothing
       }
     }, 100)
     
@@ -147,7 +153,7 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
         clearInterval(timerCheckRef.current)
       }
     }
-  }, [isHost, gameState?.matchStatus, gameState?.timerStartedAt, activePlayers, endRound])
+  }, [isHost, gameState?.matchStatus, gameState?.timerStartedAt, activePlayers, continueRound, endRound])
 
   // HOST ONLY: Handle round end -> next round or match end
   useEffect(() => {

@@ -51,6 +51,7 @@ interface UseGameStateReturn {
   
   // Host-only actions
   setBombHolder: (holderId: string) => Promise<void>
+  continueRound: (eliminatedId: string, newBombHolderId: string) => Promise<void>
   endRound: (winnerId: string, loserId: string) => Promise<void>
   startNextRound: () => Promise<void>
   endMatch: (winnerId: string) => Promise<void>
@@ -379,6 +380,20 @@ export function useGameState({
     }))
   }, [isHost, updateGameState])
 
+  // Continue round after elimination (host only) - for 3+ player games
+  // Called when timer expires but more than 1 player remains
+  const continueRound = useCallback(async (eliminatedId: string, newBombHolderId: string) => {
+    if (!isHost) return
+    
+    await updateGameState(prev => ({
+      ...prev,
+      eliminatedThisRound: [...prev.eliminatedThisRound, eliminatedId],
+      bombHolderId: newBombHolderId,
+      timerStartedAt: Date.now(),
+      timerDuration: INITIAL_TIMER_DURATION,
+    }))
+  }, [isHost, updateGameState])
+
   // End round (host only)
   const endRound = useCallback(async (winnerId: string, loserId: string) => {
     if (!isHost) return
@@ -477,6 +492,7 @@ export function useGameState({
     startCountdown,
     passBomb,
     setBombHolder,
+    continueRound,
     endRound,
     startNextRound,
     endMatch,
