@@ -10,7 +10,7 @@ import {
 } from "lucide-react"
 import { useLiveContext } from "./live-context"
 import { useLiveRooms } from "@/hooks/use-live-rooms"
-import { getGameBySlug } from "@/lib/games-data"
+import { getGameBySlug, type GameCategory } from "@/lib/games-data"
 import type { RoomWithPlayers, RoomPlayer } from "@/lib/types/room"
 import type { LucideIcon } from "lucide-react"
 
@@ -227,14 +227,33 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 }
 
 export function LiveRoomsGrid() {
-  const { gameFilter, statusFilter, networkFilter, sort } = useLiveContext()
-  const { rooms, stats, isLoading, error, refetch } = useLiveRooms({
-    gameSlug: gameFilter,
+  const { categoryFilter, statusFilter, networkFilter, sort } = useLiveContext()
+  
+  // Fetch all rooms (no game filter - we filter by category client-side)
+  const { rooms: allRooms, isLoading, error, refetch } = useLiveRooms({
     status: statusFilter,
     network: networkFilter,
     sort,
     refreshInterval: 5000,
   })
+  
+  // Filter rooms by category client-side using game categories from games-data
+  const rooms = categoryFilter
+    ? allRooms.filter(room => {
+        const game = getGameBySlug(room.game_slug)
+        // A game can belong to multiple categories
+        return game?.categories.includes(categoryFilter as GameCategory)
+      })
+    : allRooms
+  
+  // Calculate stats from filtered rooms
+  const stats = {
+    totalRooms: rooms.length,
+    liveRooms: rooms.filter(r => r.status === "live").length,
+    waitingRooms: rooms.filter(r => r.status === "waiting").length,
+    startingRooms: rooms.filter(r => r.status === "starting").length,
+    totalPlayers: rooms.reduce((acc, r) => acc + r.player_count, 0),
+  }
 
   return (
     <div>
