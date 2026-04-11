@@ -2,30 +2,20 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, Bomb, HelpCircle, Handshake, CircleDot, Timer, Crown, LayoutGrid, Radio, Users, Brain, Eye, Zap, Link as LinkIcon, Bitcoin, Search } from "lucide-react"
+import { ChevronDown, LayoutGrid, Swords, Users, Brain, MessageCircle, Zap, Trophy } from "lucide-react"
 import { useLiveContext } from "./live-context"
-import { getActiveGames } from "@/lib/games-data"
+import { allCategories, type GameCategory } from "@/lib/games-data"
 import type { SortOption } from "@/hooks/use-live-rooms"
-import type { IconName } from "@/lib/games-data"
 
-const iconMap: Record<IconName, typeof Bomb> = {
-  bomb: Bomb,
-  handshake: Handshake,
-  "circle-dot": CircleDot,
-  clock: HelpCircle,
-  timer: Timer,
-  crown: Crown,
-  users: Users,
-  brain: Brain,
-  eye: Eye,
-  zap: Zap,
-  link: LinkIcon,
-  bitcoin: Bitcoin,
-  search: Search,
+// Category icons - same as Games page for consistency
+const categoryIcons: Record<string, typeof LayoutGrid> = {
+  "1v1": Swords,
+  "Multiplayer": Users,
+  "Quiz": Brain,
+  "Social": MessageCircle,
+  "Reaction": Zap,
+  "Final": Trophy,
 }
-
-// Only show active games in the filter
-const activeGames = getActiveGames()
 
 const statusFilters = [
   { label: "All", value: null },
@@ -46,44 +36,44 @@ const networkOptions = [
 ]
 
 export function LiveFilters() {
-  const { gameFilter, statusFilter, networkFilter, sort, setGameFilter, setStatusFilter, setNetworkFilter, setSort } = useLiveContext()
+  const { categoryFilter, statusFilter, networkFilter, sort, setCategoryFilter, setStatusFilter, setNetworkFilter, setSort } = useLiveContext()
   const [showSort, setShowSort] = useState(false)
 
   return (
     <section className="py-4 border-b border-border bg-card/50 sticky top-16 z-40 backdrop-blur-sm">
       <div className="container mx-auto px-6 lg:px-8">
         <div className="flex items-center justify-between gap-4">
-          {/* Game filter pills */}
+          {/* Category filter pills - matches Games page */}
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
-            {/* All games filter */}
+            {/* All filter */}
             <button
-              onClick={() => setGameFilter(null)}
+              onClick={() => setCategoryFilter(null)}
               className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200 ${
-                gameFilter === null
+                categoryFilter === null
                   ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
                   : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
               }`}
             >
               <LayoutGrid className="h-3.5 w-3.5" />
-              All Games
+              All
             </button>
             
-            {/* Individual game filters - only active games */}
-            {activeGames.map((game) => {
-              const Icon = iconMap[game.iconName] || Radio
-              const isActiveFilter = gameFilter === game.slug
+            {/* Category filters - same as Games page */}
+            {allCategories.map((category) => {
+              const Icon = categoryIcons[category] || LayoutGrid
+              const isActive = categoryFilter === category
               return (
                 <button
-                  key={game.slug}
-                  onClick={() => setGameFilter(game.slug)}
+                  key={category}
+                  onClick={() => setCategoryFilter(category)}
                   className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200 ${
-                    isActiveFilter
+                    isActive
                       ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
                       : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
                   }`}
                 >
                   <Icon className="h-3.5 w-3.5" />
-                  {game.title}
+                  {category}
                 </button>
               )
             })}

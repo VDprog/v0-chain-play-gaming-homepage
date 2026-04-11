@@ -131,7 +131,7 @@ export function useGameState({
         type: "broadcast",
         event: "game_state",
         payload: newState,
-      })
+      }, { httpSend: true })
     } catch (err) {
       console.error("[v0] Failed to save game state:", err)
     }
@@ -153,8 +153,39 @@ export function useGameState({
         
         if (savedState && savedState.version > 0) {
           setGameState(savedState)
+          
+          // If state is already in countdown (set by start API), host schedules transition to playing
+          if (isHost && savedState.matchStatus === "countdown" && savedState.countdownEndsAt) {
+            const timeUntilPlaying = Math.max(0, savedState.countdownEndsAt - Date.now())
+            
+            // Clear any existing timeout
+            if (countdownTimeoutRef.current) {
+              clearTimeout(countdownTimeoutRef.current)
+            }
+            
+            countdownTimeoutRef.current = setTimeout(async () => {
+              // Pick random bomb holder
+              const randomHolder = playerIds[Math.floor(Math.random() * playerIds.length)]
+              
+              // Update to playing state
+              const playingState: SharedGameState = {
+                ...savedState,
+                matchStatus: "playing",
+                bombHolderId: randomHolder,
+                timerStartedAt: Date.now(),
+                timerDuration: INITIAL_TIMER_DURATION,
+                countdownEndsAt: null,
+                lastUpdatedBy: playerId,
+                lastUpdatedAt: Date.now(),
+                version: savedState.version + 1,
+              }
+              
+              setGameState(playingState)
+              await saveGameStateDirect(playingState)
+            }, timeUntilPlaying)
+          }
         } else {
-          // Initialize new game state
+          // Initialize new game state (fallback - start API normally sets this)
           const initialState = createInitialGameState(totalRounds, playerIds)
           setGameState(initialState)
           
@@ -254,7 +285,7 @@ export function useGameState({
         type: "broadcast",
         event: "game_state",
         payload: newState,
-      })
+      }, { httpSend: true })
     } catch (err) {
       console.error("[v0] Failed to save game state:", err)
     }
@@ -350,39 +381,68 @@ export function useGameState({
 
   // End round (host only)
   const endRound = useCallback(async (winnerId: string, loserId: string) => {
-    if (!isHost || !gameState) return
+    if (!isHost) return
     
-    const newWins = { ...gameState.playerWins }
-    newWins[winnerId] = (newWins[winnerId] || 0) + 1
-    
-    const matchIsOver = newWins[winnerId] >= winsNeeded
-    
-    await updateGameState(prev => ({
-      ...prev,
-      matchStatus: "roundEnd",
-      playerWins: newWins,
-      roundWinnerId: winnerId,
-      roundLoserId: loserId,
-      eliminatedThisRound: [...prev.eliminatedThisRound, loserId],
-      matchWinnerId: matchIsOver ? winnerId : null,
-      timerStartedAt: null,
-    }))
-  }, [isHost, gameState, winsNeeded, updateGameState])
+    // Use functional updater to avoid stale closure - compute newWins inside the updater
+    await updateGameState(prev => {
+      const newWins = { ...prev.playerWins }
+      newWins[winnerId] = (newWins[winnerId] || 0) + 1
+      
+      const matchIsOver = newWins[winnerId] >= winsNeeded
+      
+      return {
+        ...prev,
+        matchStatus: "roundEnd",
+        playerWins: newWins,
+        roundWinnerId: winnerId,
+        roundLoserId: loserId,
+        eliminatedThisRound: [...prev.eliminatedThisRound, loserId],
+        matchWinnerId: matchIsOver ? winnerId : null,
+        timerStartedAt: null,
+      }
+    })
+  }, [isHost, winsNeeded, updateGameState])
 
-  // Start next round (host only)
+  // Start next round (host only) - directly transitions to countdown
   const startNextRound = useCallback(async () => {
-    if (!isHost || !gameState) return
+    if (!isHost) return
     
+    const countdownEndsAt = Date.now() + (COUNTDOWN_DURATION * 1000)
+    
+    // Clear any existing countdown timeout
+    if (countdownTimeoutRef.current) {
+      clearTimeout(countdownTimeoutRef.current)
+    }
+    
+    // Transition directly to countdown (skip waiting state)
     await updateGameState(prev => ({
       ...prev,
       currentRound: prev.currentRound + 1,
-      matchStatus: "waiting",
+      matchStatus: "countdown",
+      countdownEndsAt,
       eliminatedThisRound: [],
       roundWinnerId: null,
       roundLoserId: null,
       bombHolderId: null,
       timerStartedAt: null,
     }))
+    
+    // Host schedules transition to playing after countdown
+    countdownTimeoutRef.current = setTimeout(async () => {
+      // Use the ref to get current playerIds (avoids stale closure)
+      const currentPlayerIds = playerIdsRef.current
+      // Pick random bomb holder from all players
+      const randomHolder = currentPlayerIds[Math.floor(Math.random() * currentPlayerIds.length)]
+      
+      await updateGameState(prev => ({
+        ...prev,
+        matchStatus: "playing",
+        bombHolderId: randomHolder,
+        timerStartedAt: Date.now(),
+        timerDuration: INITIAL_TIMER_DURATION,
+        countdownEndsAt: null,
+      }))
+    }, COUNTDOWN_DURATION * 1000)
   }, [isHost, gameState, updateGameState])
 
   // End match (host only)

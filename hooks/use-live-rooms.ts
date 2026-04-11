@@ -2,6 +2,7 @@
 
 import useSWR from "swr"
 import type { RoomWithPlayers } from "@/lib/types/room"
+import { ROOM_TIMEOUTS } from "@/lib/room-lifecycle-utils"
 
 const fetcher = async (url: string) => {
   const res = await fetch(url)
@@ -50,14 +51,34 @@ export function useLiveRooms(options: UseLiveRoomsOptions = {}) {
     }
   )
 
-  // Filter out invalid/orphaned rooms and sort
-  const validRooms = data?.rooms?.filter(room => {
+  // Filter out invalid/orphaned/stale rooms with safe null checks
+  const now = Date.now()
+  const validRooms = (data?.rooms || []).filter(room => {
+    // Guard against malformed room data
+    if (!room || typeof room !== 'object') return false
+    
     // Exclude rooms without players (orphaned)
-    if (room.player_count === 0) return false
+    const playerCount = typeof room.player_count === 'number' ? room.player_count : 0
+    if (playerCount === 0) return false
+    
     // Exclude rooms with invalid status
-    if (!["waiting", "starting", "live"].includes(room.status)) return false
+    const status = room.status
+    if (!status || !["waiting", "starting", "live"].includes(status)) return false
+    
+    // Client-side stale detection as backup safety layer
+    // Use safe timestamp fallback: updated_at > started_at > created_at
+    const activityTime = new Date(
+      room.updated_at || room.started_at || room.created_at || new Date().toISOString()
+    ).getTime()
+    const age = now - activityTime
+    
+    // Apply status-specific timeout rules
+    if (status === "waiting" && age > ROOM_TIMEOUTS.WAITING) return false
+    if (status === "starting" && age > ROOM_TIMEOUTS.STARTING) return false
+    if (status === "live" && age > ROOM_TIMEOUTS.LIVE) return false
+    
     return true
-  }) || []
+  })
   
   const sortedRooms = sortRooms(validRooms, sort)
 

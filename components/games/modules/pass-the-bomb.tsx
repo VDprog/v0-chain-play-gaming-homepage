@@ -43,6 +43,7 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
   // Track refs for host-side timer management
   const timerCheckRef = useRef<NodeJS.Timeout | null>(null)
   const roundEndTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const roundEndScheduledRef = useRef<number>(0) // Track which round's end has been scheduled
   
   // Shared game state - synchronized across all players
   const {
@@ -64,6 +65,14 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
     playerIds,
   })
 
+  // Ref to avoid stale closure in interval callbacks
+  const gameStateRef = useRef(gameState)
+  
+  // Keep gameStateRef updated to avoid stale closures
+  useEffect(() => {
+    gameStateRef.current = gameState
+  }, [gameState])
+
   // Current player info
   const currentPlayerId = player?.id
   const hasBomb = currentPlayerId === gameState?.bombHolderId
@@ -83,6 +92,9 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
   // Get danger level for animations
   const dangerLevel = getDangerLevel(timeRemaining)
 
+  // Note: Auto-start is now handled by the start API which sets matchStatus to "countdown"
+  // The useGameState hook handles scheduling the transition to "playing" after countdown
+
   // HOST ONLY: Monitor timer and handle round completion
   useEffect(() => {
     if (!isHost || !gameState) return
@@ -96,23 +108,33 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
     // Only monitor during playing phase
     if (gameState.matchStatus !== "playing" || !gameState.timerStartedAt) return
     
-    // Check timer every 100ms
+    const timerStartedAt = gameState.timerStartedAt
+    const timerDuration = gameState.timerDuration
+    
+    // Check timer every 100ms - use ref for current state to avoid stale closure
     timerCheckRef.current = setInterval(() => {
-      const elapsed = (Date.now() - gameState.timerStartedAt!) / 1000
-      const remaining = gameState.timerDuration - elapsed
+      const currentState = gameStateRef.current
+      if (!currentState || currentState.matchStatus !== "playing") {
+        clearInterval(timerCheckRef.current!)
+        timerCheckRef.current = null
+        return
+      }
       
-      if (remaining <= 0 && gameState.bombHolderId) {
+      const elapsed = (Date.now() - timerStartedAt) / 1000
+      const remaining = timerDuration - elapsed
+      
+      if (remaining <= 0 && currentState.bombHolderId) {
         // Timer expired - bomb explodes!
         clearInterval(timerCheckRef.current!)
         timerCheckRef.current = null
         
-        const loserId = gameState.bombHolderId
-        const newEliminated = [...gameState.eliminatedThisRound, loserId]
-        const remaining = activePlayers.filter(p => !newEliminated.includes(p.id))
+        const loserId = currentState.bombHolderId
+        const newEliminated = [...currentState.eliminatedThisRound, loserId]
+        const stillAlive = activePlayers.filter(p => !newEliminated.includes(p.id))
         
-        if (remaining.length === 1) {
+        if (stillAlive.length === 1) {
           // Round winner determined
-          const winnerId = remaining[0].id
+          const winnerId = stillAlive[0].id
           endRound(winnerId, loserId)
         }
         // If more than 1 player remaining, continue with next bomb holder
@@ -125,43 +147,42 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
         clearInterval(timerCheckRef.current)
       }
     }
-  }, [isHost, gameState?.matchStatus, gameState?.timerStartedAt, gameState?.bombHolderId, gameState?.timerDuration, gameState?.eliminatedThisRound, activePlayers, endRound])
+  }, [isHost, gameState?.matchStatus, gameState?.timerStartedAt, activePlayers, endRound])
 
   // HOST ONLY: Handle round end -> next round or match end
   useEffect(() => {
     if (!isHost || !gameState || gameState.matchStatus !== "roundEnd") return
     
-    // Clear any existing timeout
-    if (roundEndTimeoutRef.current) {
-      clearTimeout(roundEndTimeoutRef.current)
-      roundEndTimeoutRef.current = null
-    }
-    
     const winnerId = gameState.roundWinnerId
     if (!winnerId) return
     
+    // Guard: Only schedule once per round (prevents re-scheduling on every state update)
+    if (roundEndScheduledRef.current >= gameState.currentRound) {
+      return
+    }
+    
+    // Mark this round as scheduled
+    roundEndScheduledRef.current = gameState.currentRound
+    
     const winnerWins = gameState.playerWins[winnerId] || 0
     const matchIsOver = winnerWins >= winsNeeded
+    
+
+    
+    // Clear any existing timeout (shouldn't happen with guard, but safety)
+    if (roundEndTimeoutRef.current) {
+      clearTimeout(roundEndTimeoutRef.current)
+    }
     
     roundEndTimeoutRef.current = setTimeout(async () => {
       if (matchIsOver) {
         await endMatch(winnerId)
       } else {
-        // Start next round - this goes to waiting then auto-starts countdown
+        // Start next round - automatically transitions to countdown
         await startNextRound()
-        // Small delay then start countdown for next round
-        setTimeout(() => {
-          startCountdown()
-        }, 500)
       }
     }, BETWEEN_ROUNDS_DELAY)
-    
-    return () => {
-      if (roundEndTimeoutRef.current) {
-        clearTimeout(roundEndTimeoutRef.current)
-      }
-    }
-  }, [isHost, gameState?.matchStatus, gameState?.roundWinnerId, gameState?.playerWins, winsNeeded, endMatch, startNextRound, startCountdown])
+  }, [isHost, gameState?.matchStatus, gameState?.roundWinnerId, gameState?.playerWins, gameState?.currentRound, winsNeeded, endMatch, startNextRound, totalRounds])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -170,12 +191,6 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
       if (roundEndTimeoutRef.current) clearTimeout(roundEndTimeoutRef.current)
     }
   }, [])
-
-  // Handle start game button click
-  const handleStartGame = async () => {
-    if (isSpectator || !isHost) return
-    await startCountdown()
-  }
 
   // Handle passing the bomb
   const handlePassBomb = async (targetId: string) => {
@@ -282,30 +297,6 @@ export function PassTheBombGame({ room, player, isSpectator }: PassTheBombGamePr
 
       {/* Main Game Area */}
       <div className="flex-1 flex items-center justify-center p-8">
-        {/* Waiting State */}
-        {gamePhase === "waiting" && (
-          <div className="text-center">
-            <div className="w-32 h-32 mx-auto mb-6 rounded-full bg-primary/10 flex items-center justify-center">
-              <Bomb className="h-16 w-16 text-primary" />
-            </div>
-            <h3 className="text-2xl font-bold mb-2">
-              {currentRound === 1 ? "Ready to Play?" : `Round ${currentRound}`}
-            </h3>
-            <p className="text-muted-foreground mb-6">
-              {activePlayers.length} players ready
-            </p>
-            {!isSpectator && isHost && (
-              <Button size="lg" onClick={handleStartGame} className="gap-2">
-                <Bomb className="h-5 w-5" />
-                Start Round
-              </Button>
-            )}
-            {!isSpectator && !isHost && (
-              <p className="text-muted-foreground">Waiting for host to start...</p>
-            )}
-          </div>
-        )}
-
         {/* Countdown State */}
         {gamePhase === "countdown" && (
           <div className="text-center">
