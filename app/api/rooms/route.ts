@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import type { CreateRoomInput } from "@/lib/types/room"
-import { ROOM_EXPIRATION_MS } from "@/lib/types/room"
+import { ROOM_TIMEOUTS } from "@/lib/room-lifecycle"
 
 // GET /api/rooms - List rooms (optionally filtered by game_slug)
 export async function GET(request: NextRequest) {
@@ -13,13 +13,56 @@ export async function GET(request: NextRequest) {
   const network = searchParams.get("network")
   const limit = parseInt(searchParams.get("limit") || "20")
 
-  // First, expire any old waiting rooms (15 minutes without starting)
-  const expirationTime = new Date(Date.now() - ROOM_EXPIRATION_MS).toISOString()
+  // Expire stale rooms based on status-specific timeouts
+  const now = Date.now()
+  
+  // 1. Expire stale WAITING rooms (3 minutes)
+  const waitingCutoff = new Date(now - ROOM_TIMEOUTS.WAITING).toISOString()
   await supabase
     .from("rooms")
     .update({ status: "expired" })
     .eq("status", "waiting")
-    .lt("created_at", expirationTime)
+    .lt("updated_at", waitingCutoff)
+  
+  // Also expire waiting rooms using created_at fallback if updated_at is null
+  await supabase
+    .from("rooms")
+    .update({ status: "expired" })
+    .eq("status", "waiting")
+    .is("updated_at", null)
+    .lt("created_at", waitingCutoff)
+  
+  // 2. Expire stuck STARTING rooms (1 minute)
+  const startingCutoff = new Date(now - ROOM_TIMEOUTS.STARTING).toISOString()
+  await supabase
+    .from("rooms")
+    .update({ status: "expired" })
+    .eq("status", "starting")
+    .lt("updated_at", startingCutoff)
+  
+  // Fallback for starting rooms with null updated_at
+  await supabase
+    .from("rooms")
+    .update({ status: "expired" })
+    .eq("status", "starting")
+    .is("updated_at", null)
+    .lt("created_at", startingCutoff)
+  
+  // 3. Expire inactive LIVE rooms (10 minutes) - CRITICAL for stuck rooms
+  const liveCutoff = new Date(now - ROOM_TIMEOUTS.LIVE).toISOString()
+  await supabase
+    .from("rooms")
+    .update({ status: "expired" })
+    .eq("status", "live")
+    .lt("updated_at", liveCutoff)
+  
+  // Fallback for live rooms with null updated_at - use started_at
+  await supabase
+    .from("rooms")
+    .update({ status: "expired" })
+    .eq("status", "live")
+    .is("updated_at", null)
+    .lt("started_at", liveCutoff)
 
   let query = supabase
     .from("rooms_with_players")

@@ -31,18 +31,53 @@ export async function touchRoomActivity(roomId: string): Promise<void> {
 }
 
 /**
+ * Get the best available activity timestamp with safe fallbacks
+ * Priority: last_activity_at > updated_at > started_at > created_at
+ */
+export function getActivityTimestamp(room: {
+  last_activity_at?: string | null
+  updated_at?: string | null
+  started_at?: string | null
+  created_at: string
+}): number {
+  // Try each timestamp in order of preference
+  const candidates = [
+    room.last_activity_at,
+    room.updated_at,
+    room.started_at,
+    room.created_at,
+  ]
+  
+  for (const ts of candidates) {
+    if (ts) {
+      const time = new Date(ts).getTime()
+      if (!isNaN(time)) return time
+    }
+  }
+  
+  // Absolute fallback - should never happen but prevents NaN
+  return Date.now()
+}
+
+/**
  * Check if a room is stale based on its status and last activity
+ * Uses safe timestamp fallbacks to handle missing fields
  */
 export function isRoomStale(
   status: RoomStatus,
   lastActivityAt: string | null,
   createdAt: string,
-  finishedAt?: string | null
+  finishedAt?: string | null,
+  updatedAt?: string | null,
+  startedAt?: string | null
 ): boolean {
   const now = Date.now()
-  const activityTime = lastActivityAt 
-    ? new Date(lastActivityAt).getTime()
-    : new Date(createdAt).getTime()
+  const activityTime = getActivityTimestamp({
+    last_activity_at: lastActivityAt,
+    updated_at: updatedAt,
+    started_at: startedAt,
+    created_at: createdAt,
+  })
   
   const timeSinceActivity = now - activityTime
 
@@ -247,27 +282,47 @@ export async function getActivePlayerCount(roomId: string): Promise<number> {
 
 /**
  * Check if a room is valid for /live display
+ * Uses safe null checks and fallbacks for all fields
  */
 export function isRoomValidForLive(room: {
-  status: RoomStatus
-  player_count: number
+  status?: string | null
+  player_count?: number | null
   last_activity_at?: string | null
-  created_at: string
+  updated_at?: string | null
+  created_at?: string | null
   started_at?: string | null
   finished_at?: string | null
 }): boolean {
-  // Must be an active status
-  if (!["waiting", "starting", "live"].includes(room.status)) {
+  // Guard against malformed room data
+  if (!room || typeof room !== 'object') {
     return false
   }
   
-  // Must have at least one player
-  if (room.player_count === 0) {
+  const status = room.status as RoomStatus | null | undefined
+  
+  // Must be an active status
+  if (!status || !["waiting", "starting", "live"].includes(status)) {
     return false
   }
+  
+  // Must have at least one player (default to 0 if missing)
+  const playerCount = typeof room.player_count === 'number' ? room.player_count : 0
+  if (playerCount === 0) {
+    return false
+  }
+  
+  // Must have a valid created_at (use current time as fallback if missing)
+  const createdAt = room.created_at || new Date().toISOString()
   
   // Must not be stale
-  if (isRoomStale(room.status, room.last_activity_at ?? null, room.created_at, room.finished_at)) {
+  if (isRoomStale(
+    status,
+    room.last_activity_at ?? null,
+    createdAt,
+    room.finished_at ?? null,
+    room.updated_at ?? null,
+    room.started_at ?? null
+  )) {
     return false
   }
   
