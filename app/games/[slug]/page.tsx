@@ -44,13 +44,13 @@ export default async function GamePage({ params }: { params: Promise<{ slug: str
     notFound()
   }
 
-  // Fetch initial rooms for this game
+  // Fetch initial rooms for this game (only active rooms)
   const supabase = await createClient()
   const { data: rooms } = await supabase
     .from("rooms_with_players")
     .select("*")
     .eq("game_slug", slug)
-    .neq("status", "finished")
+    .in("status", ["waiting", "starting", "live"])
     .order("created_at", { ascending: false })
     .limit(20)
   
